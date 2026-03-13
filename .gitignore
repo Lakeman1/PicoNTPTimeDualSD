@@ -1,0 +1,15 @@
+# Build output
+build/
+
+# VSCode settings
+.vscode/
+
+# Arduino / compile files
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+compile_commands.json
+build.options.json
+.last-used
