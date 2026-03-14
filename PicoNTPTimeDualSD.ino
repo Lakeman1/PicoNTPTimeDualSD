@@ -742,44 +742,8 @@ inline void wdRecord(uint16_t line)
     eeprom.eeprom_write(EEPROM_LINE_ADDR, line);
 }
 
-// Logger functions ----------------------------------------------
-// void logEvent(SysEvent e)
-// {
-//     logfile.print(rtcTimestamp());
-//     logfile.print(",");
-//     logfile.println(e);
-// }
-
-// Whenever code -- tenplate
-// currentEvent = EVT_SD_WRITE;
-// logEvent(currentEvent);
 
 // OLED functions -------------------------------------------------------------------
-
-// Minimal Page Stubs (compile-test)
-// void drawEventPage()
-// {
-//        display.setCursor(0,TITLE_Y)
-//        display.setTextSize(1);
-//     display.println("EVENT");
-//     display.println(lastEventString);
-// }
-
-// Page Rotation Function
-// void updatePageRotation()
-// {
-//     unsigned long now = millis();
-
-//     if (now - lastPageChange >= PAGE_INTERVAL_MS)
-//     {
-//         page++;
-
-//         if (page >= PAGE_COUNT)
-//             page = 0;
-
-//         lastPageChange = now;
-//     }
-// }
 
 // Uptime  - ROUTINE TO BUILD THE LENGTH OF TIME APPLICATION HAS BEEN RUNNING IN HUMAN READABLE FORM
 // GOOD CANDITDATE FOR MY LIBRARY
@@ -838,75 +802,6 @@ void drawClockPage()
     display.println(bufferds);
 }
 
-// void drawClockPage()  //old goes  MAYBE NOT
-// {
-//     display.setCursor(0, TITLE_Y); 
-//     display.setTextSize(1);
-//     display.println("CLOCK");
-
-//     display.setCursor(60, TITLE_Y);    // changed from 80
-
-//     // display.print(rtcSyncOK() ? "\xFB" : "!");  // or 'S' /// old version
-//     if(!rtcSyncOK())
-//     {
-//        display.printf("RTC %ld C:%d\n", driftSeconds, timeDriftConfidence);
-//     }
-
-//     display.setCursor(90, TITLE_Y);
-
-//     if(rtcSyncOK())
-//       display.print("✓");
-//     else
-//       display.print("!");
-
-//     //file name currentDates check 
-//     display.print(filenameDateOK() ? "✓" : "!");
-//     // display.print(filenameDateOK() ? "\xFB" : "!");
-
-//     // display.drawLine(0,10,127,10,SSD1306_WHITE);
- 
-//     display.setCursor(0, BODY_Y);
-//      display.setTextSize(1);
-//     // display.setCursor(0,14);
-//     display.println(bufferpi);   // Pico RTC string
-
-//     display.setCursor(0,38);
-//     display.println(bufferds);   // DS3231 string
-// }
-
-// void drawClockPage()  // Temp replacement
-// {
-//     display.setCursor(0, TITLE_Y);
-//     display.println("CLOCK");
-
-//     display.setCursor(0, BODY_Y);
-
-//     display.printf("RTC %04d-%02d-%02d\n",
-//         rtc.year(), rtc.month(), rtc.day());
-
-//     display.printf("NTP %04d-%02d-%02d\n",
-//         ntp.year(), ntp.month(), ntp.day());
-
-//     display.printf("Tin %.1fC\n", tempIn);
-//     display.printf("Tout %.1fC\n", tempOut);
-// }
-
-// void drawClockPage()  //PERFER MIND AS IT DISPLAY BOTH CLOCKS AND TEMPS
-// {
-//     display.setCursor(0, TITLE_Y);
-//     display.println("CLOCK");
-
-//     display.setCursor(0, BODY_Y);
-
-//     display.printf("RTC %04d-%02d-%02d\n",
-//         rtc.year(), rtc.month(), rtc.day());
-
-//     // Placeholder until we hook real data
-//     display.println("NTP --");
-//     display.println("Tin --");
-//     display.println("Tout --");
-// }
-
 // OLED Event Display
 void oledEventMessage(const char *msg)
 {
@@ -937,29 +832,6 @@ const char* stageToStr(CycleStage s)
     return "?";
 }
 
-
-// const char* stageToStr(CycleStage s)
-// {
-//     switch(s)
-//     {
-//         case STAGE_SETUP:        return "SETUP";
-//         case STAGE_BOOT_I2C:     return "BOOT_I2C";
-//         case STAGE_BOOT_RTC:     return "BOOT_RTC";
-//         case STAGE_BOOT_SD:      return "BOOT_SD";
-//         case STAGE_BOOT_TIME:    return "BOOT_TIME";
-//         case STAGE_BOOT_EEPROM:  return "BOOT_EEPROM";
-//         case STAGE_START:        return "START";
-//         case STAGE_SENSORS:      return "SENSORS";
-//         case STAGE_SD1:          return "SD1";
-//         case STAGE_SD2:          return "SD2";
-//         case STAGE_PROM:         return "PROM";
-//         case STAGE_DONE:         return "DONE";
-//         case STAGE_UNKNOWN:      return "UNKNOWN";
-//     }
-//     DBGPF("Unknown stage value: %d\n", s);
-//     return "?";
-// }
-
 // OLED ROUTINE TO BUILD THE CYCLE PAGE
 void drawCyclePage()
 {
@@ -980,26 +852,6 @@ void drawCyclePage()
     display.printf("Count: %lu\n", health.cycle_count); // what is it telling me?
     display.printf("Stage: %d %s\n", stage, stageToStr(stage)); // fixed I believe
 }
-
-// void drawHealthPage()   // old goes
-// {
-//     display.setCursor(0, TITLE_Y);
-//     display.setTextSize(1);
-//     display.println("HEALTH");
-
-//     display.setCursor(0, BODY_Y);
-//     display.print("SD: ");
-//     display.println(health.sd_ok ? "OK" : "FAIL");
-
-//     display.print("SNS: ");
-//     display.println(health.sensor_ok ? "OK" : "FAIL");
-
-//     display.print("NTP: ");
-//     display.println(health.ntp_ok ? "OK" : "FAIL");
-
-//     display.print("CYC: ");
-//     display.println(health.cycle_ok ? "OK" : "FAIL");
-// }
 
 // update Routine  // NOT MEANINGFULL IN CURRENT FORM AS DS3231 AND PICO RTC ARE READ AT DIFFERENT TIMES
 void updateRtcHealth()
@@ -1138,25 +990,6 @@ void rotateDisplayPage()
     }
 }
 
-// page scheduler
-// void oledUpdatePage()
-// {
-//     uint32_t dur =
-//         (page == PAGE_HEALTH) ? PAGE_LONG : PAGE_SHORT;
-
-//     if (millis() - pageStart < dur)
-//         return;
-
-//     pageStart = millis();
-
-//     switch(page)
-//     {
-//         case PAGE_EVENT: page = PAGE_CLOCK; break;
-//         case PAGE_CLOCK: page = PAGE_CYCLE; break;
-//         case PAGE_CYCLE: page = PAGE_HEALTH; break;t
-//         default:         page = PAGE_EVENT;
-//     }
-// }
 
 // Page Rendering Functions  // NEED WORK
 void drawEventPage()
@@ -1256,171 +1089,17 @@ int32_t rtcDriftSeconds()
     return diff;
 }
 
-
-
-// uint32_t rtc1_secondsOfDay()
-// {
-//     return (rtc_cache.hour * 3600UL) +
-//            (rtc_cache.min  * 60UL) +
-//             rtc_cache.sec;
-// }
-
-// uint32_t rtc2_secondsOfDay()
-// {
-//     return (pico_rtc_cache.hour * 3600UL) +
-//            (pico_rtc_cache.min  * 60UL) +
-//             pico_rtc_cache.sec;
-// }
-
 // the test.  // NEEDS CLEARER DEFINITION
 bool rtcSyncOK()
 {
     return abs(driftSeconds) <= 5;
 }
 
-
-// bool rtcSyncOK()
-// {
-//     uint32_t t1 = rtc1_secondsOfDay();
-//     uint32_t t2 = rtc2_secondsOfDay();
-
-//     uint32_t diff = (t1 > t2) ? (t1 - t2) : (t2 - t1);
-
-//     return diff <= 5;   // 5 second tolerance
-// }
-
-
 // Filename Date Check
 bool filenameDateOK()
 {
     return (currentYear > 2023 && currentMth >=1 && currentMth <=12);
 }
-
-
-
-
-// void drawEvent()
-// {
-//     display.clearDisplay();
-
-//     display.setTextSize(2);
-//     display.setCursor(0,0);
-//     display.println("EVENT");
-
-//     display.setTextSize(2);
-//     display.println(eventToStr(currentEvent));
-
-//     display.setTextSize(1);
-//     display.print("Cycle:");
-//     display.println(health.cycle_count);
-
-//     display.display();
-// }
-
-
-// void drawEvent()
-// {
-//     display.clearDisplay();
-//     display.setCursor(0,0);
-//     display.print("Event:");
-
-//     switch(currentEvent)
-//     {
-//         case EVT_BOOT:        display.print("BOOT"); break;
-//         case EVT_SENSOR_READ: display.print("SENSOR"); break;
-//         case EVT_SD_WRITE:    display.print("SD WRITE"); break;
-//         case EVT_NTP_SYNC:    display.print("NTP"); break;
-//         case EVT_ERROR:       display.print("ERROR"); break;
-//         default:              display.print("IDLE");
-//     }
-//     display.display();
-// }
-
-// Clock Page
-// void drawClock()
-// {
-//     display.clearDisplay();
-
-//     display.setTextSize(1);
-//     display.setCursor(0,0);
-//     display.printf("%04d-%02d-%02d",
-//         now.year(), now.month(), now.day());
-
-//     display.setTextSize(2);
-//     display.setCursor(0,20);
-//     display.printf("%02d:%02d:%02d",
-//         now.hour(), now.minute(), now.second());
-
-//     display.display();
-// }
-
-
-// void drawClock()
-// {
-//     display.clearDisplay();
-//     display.setCursor(0,0);
-//     display.print(now.year());
-//     display.print("-");
-//     display.print(now.month());
-//     display.print("-");
-//     display.println(now.day());
-
-//     display.print(now.hour());
-//     display.print(":");
-//     display.print(now.minute());
-//     display.print(":");
-//     display.print(now.second());
-
-//     display.display();
-// }
-
-// Cycle page
-// void drawCycle()
-// {
-//     display.clearDisplay();
-//     display.setCursor(0,0);
-//     display.print("Cycle:");
-//     display.println(health.cycle_count);
-
-//     display.print("Stage:");
-//     display.println(stage);
-
-//     display.display();
-// }
-
-// Health page
-// void drawHealth()
-// {
-//     display.clearDisplay();
-//     display.setCursor(0,0);
-
-//     display.print("SD: ");
-//     display.println(health.sd_ok ? "OK" : "FAIL");
-
-//     display.print("SNS:");
-//     display.println(health.sensor_ok ? "OK" : "FAIL");
-
-//     display.print("NTP:");
-//     display.println(health.ntp_ok ? "OK" : "FAIL");
-
-//     display.print("CYC:");
-//     display.println(health.cycle_ok ? "OK" : "FAIL");
-
-//     display.display();
-// }
-
-// Dispatcher
-// void oledDraw()
-// {
-//     switch(page)
-//     {
-//         case PAGE_EVENT:  drawEvent(); break;
-//         case PAGE_CLOCK:  drawClock(); break;
-//         case PAGE_CYCLE:  drawCycle(); break;
-//         case PAGE_HEALTH: drawHealth(); break;
-//     }
-// }
-
 
 
 // DS3231 Read Routine
@@ -1646,8 +1325,6 @@ void rtcPrintPicoCache()
       pico_rtc_cache.s); 
 }
 
-
-
 // rtc cache print routine
 void rtcPrintCache()
 {
@@ -1757,7 +1434,6 @@ bool rtcRefresh()
   DBG(buffer);
 
   // rtcFailCount = 0;  // NO NO do not want to clear count yet  need success to clear
-
   // Try again to read DS3231 rtc
   bool finalOk = rtc.refresh(); // try DS3231 again
 
@@ -1934,45 +1610,6 @@ bool rtcReadValid()
     rtc_ok = true;
     return true;
 
-    // char buffer[200] = "";
-
-    // uint8_t y = rtc.year();
-    // uint8_t mo = rtc.month();
-    // uint8_t d = rtc.day();
-    // uint8_t h = rtc.hour();
-
-    // // sanity window — simple and robust
-    // if (mo < 1 || mo > 12) return false;
-    // if (d  < 1 || d  > 31) return false;
-    // if (h  > 23) return false;
-    // if (y  < 20 || y > 90) return false;   // 2020–2090 reasonable
-
-    // // RESTORE OTHER VARIABLES (have a complete DS3231 record)
-    // uint8_t m = rtc.minute();
-    // uint8_t s = rtc.second();
-    // uint8_t dow = rtc.dayOfWeek();
-    // float t = rtc.temp()/100;
-
-    // // RESTORE CACHE
-    // rtc_cache.y  = y;
-    // rtc_cache.mo = mo;
-    // rtc_cache.d  = d;
-    // rtc_cache.dow = dow;
-    // rtc_cache.h  = h;
-    // rtc_cache.m  = m;
-    // rtc_cache.s  = s;
-    // rtc_cache.t  = t;
-    // // rtc_ok = true;
-
-    // DBGSNPF(buffer, sizeof(buffer),
-    // "rtcReadValid data: %02d-%02d-%02d %02d:%02d:%02d\n",
-    // rtc_cache.y, rtc_cache.mo, rtc_cache.d,
-    // rtc_cache.h, rtc_cache.m, rtc_cache.s);
-    // // rtc.year(), rtc.month(), rtc.day(),
-    // // rtc.hour(), rtc.minute(), rtc.second(),t);
-    // DBG(buffer);
-
-    // return true;
 }
 
 // ----------------------------------------------the actual DS3231 read for recording on the SD
@@ -2028,7 +1665,6 @@ bool RTC_Read()
   snprintf(rtcTemp, sizeof(rtcTemp), "%s", t);
   // DBGPF("rtcTemp:%s line 1907 , t:%s  temp:%f",rtcTemp,t,temp);
 
-
   // build a print line for monitor with snprintf rather than many serial.print lines
   j = DBGSNPF(rtcbuffer,sizeof(rtcbuffer),"DS RTC DT:%02d/%02d/%02d  %02d:%02d:%02d %s%sC\t\n",
   rtc_cache.y,rtc_cache.mo,rtc_cache.d,rtc_cache.h,rtc_cache.m,rtc_cache.s,t,"\xC2\xB0");  // use cache variables not module calls
@@ -2064,7 +1700,6 @@ uint8_t calcCRC(uint8_t *data, uint8_t len)
 }
 
 // eePROM Write Routine
-
 // change ETEMP to pAddr in the routine
 
 // void writeETemp(float temp)
@@ -2127,72 +1762,6 @@ void writeETemp(float temp, uint16_t pAddr )
 }
 
 
-
-
-// --------- eePROM routines ---------- for temperature -----------------
-// void FirsteePROM() 
-// {
-//   bool statusEEPROM = false;
-//   // flash(LED_PIN1,2,200);
-//   eTemp = 129.9;
-//   // set the temp to a high to force an lower temperture update as coldestTemp will not be set
-//   coldestTemp = eTemp; // force a update
- 
-//   flLED(eP_LED);
-//   writeETemp(eTemp); // call new routine
-  // // statusEEPROM = eeprom.eeprom_write(ETEMP, eTemp); // write it
-  // // delay(90);                                        // wait for it
-
-  // if (!statusEEPROM) DBGLN(F("I2C Bus Error - check wiring"));
- 
-  // // now test the write by re-reading it in
-  
-  // eeprom.eeprom_read(ETEMP, &eTemp);
-  // delay(90);
-  // if (isnan(eTemp))  // invalid float re initialize
-  // {
-  //   DBG("eTemp is NaN -- problem with the eeprom read of a float variable  SOLUTION NEEDED\n");
-  // }
-  // else
-  // {
-  //   DBG("eTemp read good \t");
-  //   // print to check data
-  //   DBG("Read eEPROM Temp=");
-  //   DBGLN((float)eTemp);
-  // }
-// }
-
-// // --------- eePROM routines ---------- for temperature -----------------
-// void FirsteePROM() 
-// {
-//   bool statusEEPROM = false;
-//   // flash(LED_PIN1,2,200);
-//   eTemp = 129.9;
-//   // set the temp to a high to force an lower temperture update as coldestTemp will not be set
-//   coldestTemp = eTemp; // force a update
- 
-//   statusEEPROM = eeprom.eeprom_write(ETEMP, eTemp); // write it
-//   delay(90);                                        // wait for it
-
-//   if (!statusEEPROM) DBGLN(F("I2C Bus Error - check wiring"));
- 
-//   // now test the write by re-reading it in
-//   flLED(eP_LED);
-//   eeprom.eeprom_read(ETEMP, &eTemp);
-//   delay(90);
-//   if (isnan(eTemp))  // invalid float re initialize
-//   {
-//     DBG("eTemp is NaN -- problem with the eeprom read of a float variable  SOLUTION NEEDED\n");
-//   }
-//   else
-//   {
-//     DBG("eTemp read good \t");
-//     // print to check data
-//     DBG("Read eEPROM Temp=");
-//     DBGLN((float)eTemp);
-//   }
-// }
-
 // New eTemp READ Routine with validation
 // change ETEMP to pAddr in the routine
 
@@ -2208,8 +1777,6 @@ bool readETemp(float *temp,uint16_t pAddr)
         DBGPF("%02X ", b);
     }
     DBGLN("\n");
-
-
 
     DBGPF("Sizeof block = %u\n", sizeof(block.data)); // changed from block.data
     // eeprom.eeprom_read(pAddr, (uint8_t*)&block.data, sizeof(block.data));
@@ -2257,149 +1824,14 @@ bool readETemp(float *temp,uint16_t pAddr)
           block.data.crc);
 
     DBGPF(
-    "temp=%.2f crc=%02X magic=%02X\n",
-    block.data.temp,
-    block.data.crc,
-    block.data.magic
-);
+      "temp=%.2f crc=%02X magic=%02X\n",
+      block.data.temp,
+      block.data.crc,
+      block.data.magic
+    );
 
     return true;
 }
-
-
-// ---------------------------------------------------------------------------
-// void RecoveryeePROM() 
-// {
-//   bool statusEEPROM = false;
-
-//   // float eTemp;  // do not initialize
-//   char e_string[100] = "";
-//   // bool  eReadOK = false;  // = 0
-//   bool  nan = false; // = 0
-
-//   char eTempbuf[10] = "";
-//   ASSERT(sizeof(eTempbuf) >= 10);
-//   // update variable to store in EEPROM
-
-//   DBG(F("Recovery because of restart\t"));
-//   // power recovery
-//   // ********** we are here because of a power outage so read the eePROM for coldestTemp and coldestData *** NOT FIRST TIME ***
-
-//   flLED(eP_LED); //flash LED
-//   eeprom.eeprom_read(ETEMP, &eTemp);  // do the read
-//   delay(160);                          // wait for it
-//   // print to check data
-//   DBG("Read eEPROM Temp=");
-//   DBGLN((float)eTemp);
-//   ASSERT(!isnan(eTemp));
-//   if (nan = (isnan(eTemp))) // > 0  // isnan return true > 0 if not valid float
-//   {
-//     DBGPF("eTemp is NaN  -- so re initializing -- nan:%d \n",nan);
-//     FirsteePROM();  // data is bad so reinitialize // = 0
-//   } else
-//   {
-//     dtostrf(eTemp, 8, 1, eTempbuf); 
-//     DBGPF("Recovered eTemp from ePROM :%s\n",eTempbuf);
-//     DBG("eTemp:");
-//     DBGLN((float) eTemp);
-//     // store in global
-//         // read error
-//     if (eTemp == 0.0)  // retry attempt 
-//     {
-//       // Try again read it back
-//       DBG(F("Going to retry eTemp read again\t"));
-//       flLED(eP_LED);
-//       eeprom.eeprom_read(ETEMP, &eTemp);
-//       delay(130);
-//       DBG(F(" eTemp re-read :"));
-//       DBGLN((float)eTemp);
-//     }
-//     // SANITY CHECK
-//     if (eTemp < -40.0 || eTemp > 85.0)
-//     {
-//         DBGLN("EEPROM temp invalid");
-//         eTemp = 99.1;
-//     }
-
-//     // read error
-//     if (eTemp == 0.0) 
-//     {
-//       DBGPF("POTENTIAL EEPROM Read Error eTemp retrieved as 0.0 most likely a read failure:%f\n",eTemp);
-//       eTemp = 99.1;  // Way to reset the the coldest temp for testing 
-//       DBG("SETTING eTemp to 99.1 to trigger a reset\n");
-//     }
-//     // seem wrong force an coldest update //found bug not needed
-//     coldestTemp = eTemp;  // copy coldest temp to coldestTemp to reset because of recovery
-//     dtostrf(coldestTemp, 8, 2, coldestCTemp); // Also update the char float variable
-//   }
-// }
-
-// // ---------------------------------------------------------------------------
-// void RecoveryeePROM() 
-// {
-//   bool statusEEPROM = false;
-
-//   // float eTemp;  // do not initialize
-//   char e_string[100] = "";
-//   // bool  eReadOK = false;  // = 0
-//   bool  nan = false; // = 0
-
-//   char eTempbuf[10] = "";
-//   ASSERT(sizeof(eTempbuf) >= 10);
-//   // update variable to store in EEPROM
-
-//   DBG(F("Recovery because of restart\t"));
-//   // power recovery
-//   // ********** we are here because of a power outage so read the eePROM for coldestTemp and coldestData *** NOT FIRST TIME ***
-
-//   flLED(eP_LED); //flash LED
-//   eeprom.eeprom_read(ETEMP, &eTemp);  // do the read
-//   delay(160);                          // wait for it
-//   // print to check data
-//   DBG("Read eEPROM Temp=");
-//   DBGLN((float)eTemp);
-//   ASSERT(!isnan(eTemp));
-//   if (nan = (isnan(eTemp))) // > 0  // isnan return true > 0 if not valid float
-//   {
-//     DBGPF("eTemp is NaN  -- so re initializing -- nan:%d \n",nan);
-//     FirsteePROM();  // data is bad so reinitialize // = 0
-//   } else
-//   {
-//     dtostrf(eTemp, 8, 1, eTempbuf); 
-//     DBGPF("Recovered eTemp from ePROM :%s\n",eTempbuf);
-//     DBG("eTemp:");
-//     DBGLN((float) eTemp);
-//     // store in global
-//         // read error
-//     if (eTemp == 0.0)  // retry attempt 
-//     {
-//       // Try again read it back
-//       DBG(F("Going to retry eTemp read again\t"));
-//       flLED(eP_LED);
-//       eeprom.eeprom_read(ETEMP, &eTemp);
-//       delay(130);
-//       DBG(F(" eTemp re-read :"));
-//       DBGLN((float)eTemp);
-//     }
-//     // SANITY CHECK
-//     if (eTemp < -40.0 || eTemp > 85.0)
-//     {
-//         DBGLN("EEPROM temp invalid");
-//         eTemp = 99.1;
-//     }
-
-//     // read error
-//     if (eTemp == 0.0) 
-//     {
-//       DBGPF("POTENTIAL EEPROM Read Error eTemp retrieved as 0.0 most likely a read failure:%f\n",eTemp);
-//       eTemp = 99.1;  // Way to reset the the coldest temp for testing 
-//       DBG("SETTING eTemp to 99.1 to trigger a reset\n");
-//     }
-//     // seem wrong force an coldest update //found bug not needed
-//     coldestTemp = eTemp;  // copy coldest temp to coldestTemp to reset because of recovery
-//     dtostrf(coldestTemp, 8, 2, coldestCTemp); // Also update the char float variable
-//   }
-// }
 
 // inspectFloat tool
 void inspectFloat(float value)
@@ -2414,40 +1846,6 @@ void inspectFloat(float value)
     DBGLN();
 }
 
-// void WriteeePROM() 
-// {
-//   bool statusEEPROM = false;
-//   char e_string[100] = "";
-//   char eTempbuf[10] = "";
-//   ASSERT(sizeof(e_string) >= 100);
-//   ASSERT(sizeof(eTempbuf) >= 10);
-//   // update variable to store in EEPROM
-//   eTemp = coldestTemp;
-//   ASSERT(!isnan(eTemp));
-//   dtostrf(eTemp, 8, 1, eTempbuf); 
-//   DBGPF("eProm-Data to be written eTemp(coldestTerm):%s\n",eTempbuf);
-
-//   flLED(eP_LED);
-//   statusEEPROM = eeprom.eeprom_write(ETEMP, eTemp);  //<------------------
-
-//   if (!statusEEPROM) 
-//   {  // write a float value to the eePROM  (4 chars)
-//     DBG(F("I2C Bus Error - check wiring -- eTemp: "));
-//     DBGLN((float)eTemp);
-//   } else 
-//   {
-//     DBG(F("eTemp stored correctly :"));
-//     DBG((float)eTemp);
-
-//     // check read it back
-//     flLED(eP_LED);
-//     eeprom.eeprom_read(ETEMP, &eTemp);
-//     delay(130);
-//     DBG(F("\t eTemp re-read :"));
-//     DBGLN((float)eTemp);
-//   }
-// }
-
 void promUpdate(float currentTemp) 
 {
   // char buffer[200] = "";
@@ -2456,8 +1854,6 @@ void promUpdate(float currentTemp)
   float curTemp2 = 0.0;
   char currentCTemp[10] = "";
   curTemp = curTemp2 = currentTemp;
-  // ASSERT(sizeof(buffer) >= 120);
-  // ASSERT(sizeof(currentCTemp) >= 10);
   dtostrf(currentTemp, 8, 2, currentCTemp);
  
   // dtostrf(coldestTemp, 8, 2, coldestCTemp);
@@ -2467,9 +1863,6 @@ void promUpdate(float currentTemp)
     coldestTemp = curTemp;
     promAddr = etempAddr;
     writeETemp(coldestTemp,promAddr);
-    // writeETemp(coldestTemp);
-    // writeETemp(coldestTemp,ETEMP2);
-
     DBGPF("New coldest temp stored %.2f\n", coldestTemp);
    
     // dtostrf(currentTemp, 8, 2, currentCTemp); // character version of float
@@ -2481,33 +1874,10 @@ void promUpdate(float currentTemp)
     coldestTemp2 = curTemp2;
     promAddr = etempAddr2;
     writeETemp(coldestTemp2,promAddr);
-    // writeETemp(coldestTemp);
-    // writeETemp(coldestTemp,ETEMP2);
-
     DBGPF("New coldest2 temp stored %.2f\n", coldestTemp2);
    
     // dtostrf(currentTemp, 8, 2, currentCTemp); // character version of float
   }
-  //  dtostrf(coldestTemp, 8, 2, coldestCTemp); // character version of float
-  //  DBGPF("currentCTemp=%s coldestCTemp=%s\n",currentCTemp,coldestCTemp); 
-
-  // {  // found a colder temperature -- up date the coldest record -- update the eeprom
-  //   DBGSNPF(buffer,sizeof(buffer),"Current Colder  -- %s Temp than previous %s  eePROM updated\n",currentCTemp,coldestCTemp);
-  //   DBG(buffer);
-
-  //   // update the coldest global variable coldestTemp with new coldest --- and the char float variable too
-  //   coldestTemp = currentTemp;
-  //   dtostrf(coldestTemp, 8, 2, coldestCTemp); // update the char float variable //5 is mininum width, 1 is precision; float value is copied onto buff
-  //   // DBGSNPF(buffer,sizeof(buffer),"2nd time Colder -- %s Temp than %s  eePROM updated\n",bmCTemp,coldestCTemp);
-  //   // DBG(buffer);
-
-  //   // strcpy(coldestData, currentData);
-  //   dtostrf(currentTemp, 8, 2, currentCTemp);
-  //   // DBGSNPF(buffer,sizeof(buffer),"Checking for coldest currentCTemp: %s coldestCTemp %s\n",currentCTemp,coldestCTemp);
-  //   // DBG(buffer);
-  //   // write to the PROM
-  //   // WriteeePROM();
-  // }
 }
 
 // Read the BME or BMP
@@ -2810,7 +2180,7 @@ bool checkFile(char *name, uint32_t filesize)
 {
   // strncmp compares up to 'n' characters
   // char patcsv1[6] = "";
-  //DBGSNPF(patcsv1,sizeof(patcsv1),"c%cv1",NODE_ID);
+  //DBGSNPF(patcsv1,sizeof(patcsv1),"c%cv1",NODE_ID);  //* Decided against the node in the file name */
   // build a pattern with snprintf(patcsv1,sizeof(patcsv1),"c%cv1",NODE_ID));
   // if (strncmp(name, patcsv1, 4) == 0) 
   if (strncmp(name, "csv1", 4) == 0) 
@@ -3159,9 +2529,6 @@ bool timer_callback(struct repeating_timer *t)
         DBGPF(" diff:%d picoYear:%d dsYear:%d rtcPICOOK returned:%s\n",diff,picoYear,dsYear,rtcPicoOk?"true":"false");        
     }
   }
-    
-  // print the time in the two clocks
-  // printTime();  //  which call DS3231 rtc Read
   return true;
 }
 
@@ -3183,9 +2550,6 @@ bool rtcPICOBad(datetime_t &b)
     if (day < 1 || day > 31)        rtcPICOBadrtN = false;
     if (!rtcPICOBadrtN) 
     {
-      // display.setCursor(0,0); 
-      // display.println("PICO RTC Date Bad");
-      // display.display();
       DBGPF("Pico date check:%04d-%02d-%02d %02d:%02d:%02d\n", b.year, b.month, b.day, b.hour, b.min, b.sec);
     }
 
@@ -3260,20 +2624,9 @@ bool readRTC()
       return false;
     }
 
-        // now test the copy
-    // DBG("callback - copying to pico_rtc_cache ");
-    // DBGSNPF(buffer, sizeof(buffer), "From Cache =>:%04d-%02d-%02d %02d:%02d:%02d\n",
-    // pico_rtc_cache.y,
-    // pico_rtc_cache.mo,
-    // pico_rtc_cache.d,
-    // // pico_rtc_cache.dow,
-    // pico_rtc_cache.h,
-    // pico_rtc_cache.m,
-    // pico_rtc_cache.s); 
-    // DBG(buffer);
+    // now print the copy
     
     // rtcPrintPicoCache();
-    
 
     snprintf(bufferpi, sizeof(bufferpi),  // Build bufferpi   for the OLED display
              "P:%04d-%02d-%02d %02d:%02d:%02d\n",
@@ -3380,11 +2733,6 @@ bool readRTC()
 // print the current DS3231 time
 void printTime() //Reads DS3231 RTC module  clock - converts floats to char - loads bufferds - flags OLED display
 {
-    // char t[10];   // 8 chars and NULL for float temp to char 
-    // ASSERT(sizeof(t) >= 10);
-
-    // convert float temp to character for printing
-    // dtostrf(rtc_cache.t, 8, 2, t);
     // added the BMx char temperature to the second line with var bmCTemp
     snprintf(bufferds, sizeof(bufferds), // for the OLED
             "DS: %02d-%02d-%02d %02d:%02d:%02d\nD:%7.2fC B:%7.2fC \n",
@@ -3392,8 +2740,6 @@ void printTime() //Reads DS3231 RTC module  clock - converts floats to char - lo
             rtc_cache.h, rtc_cache.m, rtc_cache.s,rtc_cache.t,bmTemp);
     // DBGPF("bmCTemp:%s\n",bmCTemp);
     // DBG(bufferds);
-    // flagDateTimeDisp = true;  //NOT USED
-
   }
 
 //  geLocalTime routine from the NTP time server  --- for NTP server request via WiFi
@@ -3410,10 +2756,6 @@ bool getLocalTime(struct tm * info, uint32_t ms = 5000) {
   *info = *localtime(&now);
   return true;
 }
-
-//  set up the SdFat time link call back  // for the date time record related to files via SfFat
-// 1. PLACE CALLBACK HERE (Before setup)
-// rtc routines 
 
 // RTC sanity check
 bool rtcPICOOK()
@@ -3435,16 +2777,12 @@ bool rtcPICOOK()
     int month = t.month;
     int day = t.day;
 
-   
     // Basic sanity check
     if (year < 2023 || year > 2100) rtcPICOrtN = false;
     if (month < 1 || month > 12)    rtcPICOrtN = false;
     if (day < 1 || day > 31)        rtcPICOrtN = false;
     if (!rtcPICOrtN) 
     {
-      // display.setCursor(0,0); 
-      // display.println("PICO RTC Date Bad");
-      // display.display();
       DBGPF("Pico date check:%04d-%02d-%02d %02d:%02d:%02d\n", t.year, t.month, t.day, t.hour, t.min, t.sec);
     }
 
@@ -3485,9 +2823,6 @@ bool syncPicoToDS3231() {
   // sanity check before resyncing
   if (t.year < 2024 || t.year > 2100)
   {
-    // display.setCursor(0,0); 
-    // display.println("DS RTCSet Failed");
-    // display.display();
     return false;
   }
   // DS3231 rtc set from PICO values
@@ -3519,9 +2854,6 @@ bool syncPicoToDS3231() {
   // validate
   if (rtc.year() != (t.year % 100))
   {
-    // display.setCursor(0,0); 
-    // display.println("DS RTCSet Failed");
-    // display.display();
     return false;
   }
 
@@ -3548,14 +2880,6 @@ bool syncDS3231ToPico()
   if (!rtc_ok)
   {  
     DBGPF("DS rtc failed RTC sanity check:%d",rtc_ok);
-
-    // can go
-    // DBGSNPF(buffer, sizeof(buffer), // for the OLED
-    // "DS:%02d-%02d-%02d %02d:%02d:%02d\n %s\n",
-    // rtc_cache.y,rtc_cache.mo,rtc_cache.d,rtc_cache.h,rtc_cache.m,rtc_cache.s,t);
-    // // rtc.year(), rtc.month(), rtc.day(),
-    // // rtc.hour(), rtc.minute(), rtc.second(),t);
-    // DBG(buffer);
 
     rtcPrintCache();
     DBGLN("Error: rtcOk routine rejected the DS3231 rtc time.");
@@ -3601,18 +2925,6 @@ bool syncDS3231ToPico()
 
       rtcPrintPicoCache();
 
-      // can go
-                        // DBGSNPF(buffer, sizeof(buffer), "From Cache =>:%04d-%02d-%02d %02d:%02d:%02d\n",
-                        // pico_rtc_cache.y,
-                        // pico_rtc_cache.mo,
-                        // pico_rtc_cache.d,
-                        // // pico_rtc_cache.dow,
-                        // pico_rtc_cache.h,
-                        // pico_rtc_cache.m,
-                        // pico_rtc_cache.s); 
-                        // DBG(buffer);
-
-     
       return true;
     } else 
     {
@@ -4275,7 +3587,7 @@ void setup()
   // clear the watchdogEscalation
   clearWatchdogEscalation();
 
-  // ------------------ Recover Time  -------------------------- 
+  // ------------------ Recover Time  ----------- **KEEP UNTIL WIFI TESTED** --------------- 
 
   // attempt to make wifi connection 
   // bool wifi_ok = connectWiFiWithRetries(3, 8000);  // most likely parms (3,20000) // 3 tries, wait 20 seconds
@@ -4445,30 +3757,6 @@ void setup()
   // NOW set Boot EEPROM stage  
   STAGE(STAGE_BOOT_EEPROM,"Check EEPROM"); 
 
-  // New eTemp initial read 
-  // etempAddr = ETEMP
-    // if (!readETemp(&eTemp))
-  // if (!readETemp(&eTemp,etempAddr))
-  // {
-  //   DBGLN("eTemp EEPROM data invalid - initializing");
-  //   eTemp = 79.9;
-  //   writeETemp(eTemp, etempAddr);
-  //   // writeETemp(eTemp);
-  //   coldestTemp = eTemp; // force a update
-  //   DBGPF("Setup() read-set of coldestTemp = %.f\n",coldestTemp);
-  // }
-
-  // // Second copy of eTemp EEPROM at Addr 48
-  //  if (!readETemp(&eTemp2,etempAddr2))
-  // {
-  //   DBGLN("eTemp EEPROM data invalid - initializing");
-  //   eTemp2 = 79.9;
-  //   writeETemp(eTemp2, etempAddr2);
-  //   // writeETemp(eTemp);
-  //   coldestTemp2 = eTemp2; // force a update
-  //   DBGPF("Setup() read-set of coldestTemp2 = %.f\n",coldestTemp2);
-  // }
-
   // recovery if any eTemp's are bad
   bool ok1 = readETemp(&eTemp, etempAddr);
   bool ok2 = readETemp(&eTemp2, etempAddr2);
@@ -4595,7 +3883,7 @@ void setup()
   }
    // -------watchdog enable fix for PICO RTC -------------------------- Temp????
 
-  // --------------------------------------------------
+  // ------------- Timer build examples **KEEP** -------------------------------------
   // Start repeating timer AFTER WiFi/NTP, if needed
   // --------------------------------------------------
   // Start the repeating timer call back AFTER setup
@@ -4848,38 +4136,6 @@ void loop()
     tight_loop_contents();
 }   // LOOP END
 
-// NO NO NO  NOT OF BIG USE DON'T IMPLEMENT
-//             snprintf(buffer,sizeof(buffer),"%s\n",sdData);
-//             DBG(buffer);
-//             snprintf(bufferhe,sizeof(bufferhe),
-//             "\ni2cerr=%lu i2cto=%lu i2cfail=%lu\nfs=%lu bothSD=%ld wd=%lu\nrtcsync=%lu bm_fail=%d loopOrun=%lu\n",
-//                 i2c_error_count,
-//                 i2c_timeout_count,
-//                 i2c_fail_total,
-//                 fs_fail_count,
-//                 bothSD_fail_total,
-//                 watchdog_kicks,
-//                 rtc_resync_events,
-//                 bm_fail_total,
-//                 loop_overrun_streak
-//             );
-//             // OLEDhealthDisp();
-
-//             DBGPF("Health: i2cerr=%lu i2cto=%lu i2cfail=%lu fs=%lu bothSD=%ld wd=%lu rtcsync=%lu bm_fail=%d loopOrun=%lu\n",
-//                 i2c_error_count,
-//                 i2c_timeout_count,
-//                 i2c_fail_total,
-//                 fs_fail_count,
-//                 bothSD_fail_total,
-//                 watchdog_kicks,
-//                 rtc_resync_events,
-//                 bm_fail_total,
-//                 loop_overrun_streak);
-//         }
-//     }
-// }
-
-
 // Time stamp builder
 void getTimestamp(char *buf, size_t len)
 {
@@ -4964,24 +4220,6 @@ void heartbeatLogger()
     char uptimeStr[32];
     formatUptime(uptimeStr, sizeof(uptimeStr));
 
-    // snprintf(logEntry, sizeof(logEntry),
-    //          "HB N%1d %s  Heap:%lu Min:%lu L1:%lu L2:%lu C1:%lu C2:%lu E1:%lu E2:%lu Boot:%u\r\n",
-    //          NODE_ID,
-    //          uptimeStr,
-
-    //          lastHeap,
-    //          minHeap,
-    //          log1Size,
-    //          log2Size,
-    //          csv1Size,
-    //          csv2Size,
-    //          evt1Size,
-    //          evt2Size,
-    //          (uint16_t)bootCount
-    //         );
-
-// #include <inttypes.h>
-
         snprintf(logEntry, sizeof(logEntry),
                 "HB N%" PRIu8 " %s Heap:%" PRIu32 " Min:%" PRIu32
                 " L1:%" PRIu32 " L2:%" PRIu32
@@ -5003,22 +4241,6 @@ void heartbeatLogger()
                 (uint16_t)bootCount
         );
 
-        // snprintf(logEntry, sizeof(logEntry),
-        //      "HB N%1d %s Boot:%lu Heap:%lu Min:%lu L1:%lu L2:%lu C1:%lu C2:%lu E1:%lu E2:%lu\r\n",
-        //      NODE_ID,
-        //      uptimeStr,
-        //      bootCount,
-        //      lastHeap,
-        //      minHeap,
-        //      log1Size,
-        //      log2Size,
-        //      csv1Size,
-        //      csv2Size,
-        //      evt1Size,
-        //      evt2Size
-        //     );        
-    // DBGLN(logEntry);
-
     // Only write to SD occasionally
     hbDiv++;
 
@@ -5031,45 +4253,6 @@ void heartbeatLogger()
     }
 }
 
-
-
-// uint8_t wd_slot = 0;
-
-// void wdRecordStage(CycleStage s)
-// {
-//     static uint8_t last = 0xFF;
-
-//     // DBGPF("Start: WD =>:%02X Last =>:%02X\n", s, last);
-//     if (s == last)
-//     {
-//         // DBGPF("Dup:=>:%02X\n", s);
-//         return;
-//     }
-
-//     last = s; 
-//     uint16_t addr = EEPROM_WD_LOG_BASE + wd_slot * 2;
-
-//     // DBGPF("addr: =>:%02X \n", addr);
-//     eeWriteByteIfChanged(addr,     s);
-//     eeWriteByteIfChanged(addr + 1, s ^ 0xFF);
-
-//     wd_slot = (wd_slot + 1) % EE_WD_SLOTS;
-// }
-
-// bool eeWriteByteIfChanged(uint16_t addr, uint8_t val)
-// {
-//     uint8_t old = eeprom.eeprom_read(addr);
-
-//     // DBGPF("Start: val =>:%02X old =>:%02X \n",val,old);
-//     if (old == val)
-//     {
-//         // DBGPF("Dup:=>:%02X %02X \n", val,old);
-//         return false;      // No wear
-//     }
-//     eeprom.eeprom_write(addr, val);
-//     // delay(5);              // commit time NOT NEEDED AS LIBRARY WAITS FOR THE COMMIT
-//     return true;
-// }
 
 // crc routine for the data 
 uint16_t crc16_ccitt(const uint8_t *data, size_t len)
@@ -5092,63 +4275,6 @@ uint16_t crc16_ccitt(const uint8_t *data, size_t len)
 }
 // #define EEPROM_WD_LOG_BASE   32      // you said stage uses 32/33
 // #define EE_WD_SLOTS  4       // because using 32/33 only  // changed from 2 to 4
-
-// Boot time watchdog scan routine
-// CycleStage readLastWatchdogStage()
-// {
-//     CycleStage lastStage = STAGE_UNKNOWN;
-
-//     for (uint8_t slot = 0; slot < EE_WD_SLOTS; slot++)
-//     {
-//         uint16_t addr = EEPROM_WD_LOG_BASE + slot * 2;
-
-//         uint8_t s  = eeprom.eeprom_read(addr);
-//         uint8_t sx = eeprom.eeprom_read(addr + 1);
-
-//         // validate XOR integrity
-//         if ((s ^ 0xFF) == sx)
-//         {
-//             lastStage = (CycleStage)s;
-//         }
-//     }
-
-//     return lastStage;
-// }
-
-// setup routine to print and to update oledEvent log
-// void reportLastResetStage()
-// {
-//     CycleStage last = readLastWatchdogStage();
-
-//     char buffer[80];
-//     snprintf(buffer, sizeof(buffer),
-//              "Last reset stage: %s",
-//              stageToStr(last));
-//     DBGLN(buffer);
-
-//     // Optional OLED message
-//     oledEvent(buffer, last);
-// }
-
-// void reportLastResetStage() //NEW
-// {
-//     CycleStage stage = (CycleStage)readStageEEPROM();
-//     uint16_t line = eeprom.eeprom_read(EEPROM_LINE_ADDR);
-
-//     if (line == 0)
-//         return;
-
-//     char buffer[96];
-
-//     snprintf(buffer,sizeof(buffer),
-//         "Watchdog reset: %s L:%d",
-//         stageToStr(stage),
-//         line);
-
-//     DBGLN(buffer);
-
-//     oledEvent(buffer, stage);
-// }
 
 // Loop sensor read function 
 bool readSensors()
@@ -5244,3 +4370,4 @@ bool readSensors()
 
     return ok;
 }
+// The last line
