@@ -129,13 +129,74 @@ const char *getDayOfWeek(int day, int month, int year)
             + 5 * J) % 7;
     // Zeller's output: 0=Saturday, 1=Sunday, 2=Monday, ...
     static const char *days[] = {
-        "Saturday",
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday"
+        "Sat",
+        "Sun",
+        "Mond",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri"
     };
     return days[h];
 }
+
+// A alarm timer
+// // alarm interupt callback
+// void alarm_callback() {
+//     char buffer[64];
+//     // Serial.print("Alarm Call Back: ");
+//     snprintf(buffer, sizeof(buffer),
+//              "ALARM TRIGGERED! ");
+
+//     // Serial.print("Alarm Call Back: ");
+
+//     Serial.println(buffer);
+//     flash(LED_PIN1,10,60);
+//     // Display on OLED
+//     display.stopscroll();
+//     display.clearDisplay();
+//     display.display();
+//     delay(1000);
+//     display.setTextSize(2);
+//     display.setCursor(0, 0);
+//     display.println("Alarm!!:");
+//     display.setTextSize(1);
+//     display.setCursor(0, 30);
+//     display.println(buffer);
+//     display.display();
+//     delay(1000);
+//     display.startscrollright(0x00,0x01);
+//     // Serial.println("ALARM TRIGGERED! It is 9:00 AM!");
+// }
+
+// // function to set the alarm interupt 
+// void set_alarm(int8_t aHour, int8_t aMinute) // (int aHour, int aMinute)
+// {
+//   char buffer[64];
+//   // Configure alarm
+//   datetime_t alarm = {
+//       .year  = -1,   // wildcards = every day
+//       .month = -1,
+//       .day   = -1,
+//       .dotw  = -1,
+//       .hour  = aHour,  // at 6 pm  // aHour
+//       .min   = aMinute,   // aMinute
+//       .sec   = 0
+//   };
+ 
+//   rtc_set_alarm(&alarm, alarm_callback);
+    
+//   Serial.print("Setting Alarm Call Back: ");
+//   snprintf(buffer, sizeof(buffer),"ALARM set for %02d:%02d\n",aHour,aMinute);
+//   Serial.println(buffer);
+// }
+
+//  helper to standardize formatting DS3231 time print
+// bool formatTimestamp(char *buf, size_t len) {
+//     if (!rtc_ok) return false;
+
+//     return snprintf(buf, len,
+//         "DS:%02d-%02d-%02d %02d:%02d:%02d\n %s\n",
+//         rtc_cache.y, rtc_cache.mo, rtc_cache.d,
+//         rtc_cache.h, rtc_cache.m, rtc_cache.s,t) > 0;
+// }

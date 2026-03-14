@@ -1,8 +1,11 @@
 #ifndef GLUTILS_H
 #define GLUTILS_H
 
+
 #include <Arduino.h>
 
+#include <stdint.h>
+#include <math.h>
 // ======================================================
 // USER CONFIG
 // ======================================================
@@ -14,7 +17,7 @@
 
 
 // ======================================================
-// FUNCTION DECLARATIONS
+// FUNCTION DECLARATIONS  Prototype(s)
 // ======================================================
 
 // CRC
@@ -38,4 +41,5 @@ int leapyear(int year);
 // Time functions Julian Date and LeapYear
 int julian(int day, int month, int year);
 
-#endif
+#endif  // must be at the end to guard the whole GLUTILS_H
+// don't use pragma with this method
