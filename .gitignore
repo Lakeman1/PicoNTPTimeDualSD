@@ -10,6 +10,14 @@ build/
 *.bin
 *.hex
 *.map
+*.d
+*.~
 compile_commands.json
 build.options.json
 .last-used
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+
