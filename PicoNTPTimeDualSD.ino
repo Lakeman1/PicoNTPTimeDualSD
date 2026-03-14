@@ -661,6 +661,7 @@ const char degree[] = "\u00b0";
 
 // -------------- coldestTemp contains the coldest temperature recorded.  
 float coldestTemp = 99.9;  // set to force an coldest file update right at the beginning
+float coldestTemp2 = 89.9;  // set to force an coldest file update right at the beginning
 char  coldestCTemp[10] = "99.9"; // character float variable for the coldest tempStr
 // ASSERT(sizeof(coldestCTemp) >= 10);
 // coldest data
@@ -1163,12 +1164,13 @@ void drawEventPage()
     display.setTextSize(1);
 
     display.setCursor(0, TITLE_Y);
-    display.println("EVENT LOG\n");
+    display.println("EVENT LOG");
     display.printf("EL 1:%lu 2:%lu\n", evt1Size,evt2Size);
 
     // display.drawLine(0, 15, 127, 15, SSD1306_WHITE);
 
-    display.setCursor(0, 30);
+    display.setCursor(0, BODY_Y);
+    // display.setCursor(0, 30);
 
     uint8_t lines = eventWrapped ? EVENT_LINES : eventHead;
     uint8_t idx = eventHead;
@@ -2062,7 +2064,11 @@ uint8_t calcCRC(uint8_t *data, uint8_t len)
 }
 
 // eePROM Write Routine
-void writeETemp(float temp)
+
+// change ETEMP to pAddr in the routine
+
+// void writeETemp(float temp)
+void writeETemp(float temp, uint16_t pAddr )
 {
     ETempUnion block;
 
@@ -2082,17 +2088,17 @@ void writeETemp(float temp)
       block.data.magic);
 
     flLED(eP_LED);
-    // bool status = eeprom.eeprom_write(ETEMP, block.raw);   // changed from &block.data
-    // bool status = eeprom.eeprom_write(ETEMP,(uint8_t*)&block.data,sizeof(block.data));
-      bool status = eeprom.eeprom_write(ETEMP,(uint8_t*)block.raw,sizeof(block.raw));
+    // bool status = eeprom.eeprom_write(pAddr, block.raw);   // changed from &block.data
+    // bool status = eeprom.eeprom_write(pAddr,(uint8_t*)&block.data,sizeof(block.data));
+      bool status = eeprom.eeprom_write(pAddr,(uint8_t*)block.raw,sizeof(block.raw));
 
     delay(10);
-    DBGPF("\neTemp Dump of after write ETEMP ADDR:%d\n",ETEMP);
+    DBGPF("\neTemp Dump of after write pAddr ADDR:%d\n",pAddr);
     
     for (int i=0;i<8;i++)
     {
         flLED(eP_LED);
-        uint8_t b = eeprom.eeprom_read(ETEMP+i);
+        uint8_t b = eeprom.eeprom_read(pAddr+i);
     DBGPF("%02X ", b);
     }
     DBGLN("\n");
@@ -2112,7 +2118,7 @@ void writeETemp(float temp)
     // Verification
     ETempUnion verify;
 
-    eeprom.eeprom_read(ETEMP, (uint8_t*)verify.raw, sizeof(verify.raw));
+    eeprom.eeprom_read(pAddr, (uint8_t*)verify.raw, sizeof(verify.raw));
 
     DBGPF("Post VERIFY read temp=%.2f crc=%02X magic=%02X\n",
           verify.data.temp,
@@ -2188,14 +2194,17 @@ void writeETemp(float temp)
 // }
 
 // New eTemp READ Routine with validation
-bool readETemp(float *temp)
+// change ETEMP to pAddr in the routine
+
+// bool readETemp(float *temp)
+bool readETemp(float *temp,uint16_t pAddr)
 {
     ETempUnion block;
-    DBGPF("\neTemp Dump of ETEMP after read ADDR:%d\n",ETEMP);
+    DBGPF("\neTemp Dump of pAddr after read ADDR:%d\n",pAddr);
     flLED(eP_LED);
     for (int i=0;i<8;i++)
     {
-        uint8_t b = eeprom.eeprom_read(ETEMP+i);
+        uint8_t b = eeprom.eeprom_read(pAddr+i);
         DBGPF("%02X ", b);
     }
     DBGLN("\n");
@@ -2203,8 +2212,8 @@ bool readETemp(float *temp)
 
 
     DBGPF("Sizeof block = %u\n", sizeof(block.data)); // changed from block.data
-    // eeprom.eeprom_read(ETEMP, (uint8_t*)&block.data, sizeof(block.data));
-    eeprom.eeprom_read(ETEMP, (uint8_t*)block.raw, sizeof(block.raw));
+    // eeprom.eeprom_read(pAddr, (uint8_t*)&block.data, sizeof(block.data));
+    eeprom.eeprom_read(pAddr, (uint8_t*)block.raw, sizeof(block.raw));
     // delay(15);
 
     uint8_t crcCalc = calcCRC(
@@ -2442,26 +2451,45 @@ void inspectFloat(float value)
 void promUpdate(float currentTemp) 
 {
   // char buffer[200] = "";
+  uint16_t promAddr = 40;
+  float curTemp = 0.0;
+  float curTemp2 = 0.0;
   char currentCTemp[10] = "";
+  curTemp = curTemp2 = currentTemp;
   // ASSERT(sizeof(buffer) >= 120);
   // ASSERT(sizeof(currentCTemp) >= 10);
   dtostrf(currentTemp, 8, 2, currentCTemp);
  
   // dtostrf(coldestTemp, 8, 2, coldestCTemp);
-
-  if (currentTemp < coldestTemp) 
+  DBGPF("currentTemp1=%.2f   coldestTemp=%.2f\n",curTemp,coldestTemp); 
+  if (curTemp < coldestTemp) 
   {
-    coldestTemp = currentTemp;
-
-    writeETemp(coldestTemp);
+    coldestTemp = curTemp;
+    promAddr = etempAddr;
+    writeETemp(coldestTemp,promAddr);
+    // writeETemp(coldestTemp);
     // writeETemp(coldestTemp,ETEMP2);
 
     DBGPF("New coldest temp stored %.2f\n", coldestTemp);
    
     // dtostrf(currentTemp, 8, 2, currentCTemp); // character version of float
   }
-   dtostrf(coldestTemp, 8, 2, coldestCTemp); // character version of float
-   DBGPF("currentCTemp:%s coldestCTemp:%s\n",currentCTemp,coldestCTemp); 
+   
+  DBGPF("currentTemp2=%.2f   coldestTemp=%.2f\n",curTemp2,coldestTemp2); 
+  if (curTemp2 < coldestTemp2) 
+  {
+    coldestTemp2 = curTemp2;
+    promAddr = etempAddr2;
+    writeETemp(coldestTemp2,promAddr);
+    // writeETemp(coldestTemp);
+    // writeETemp(coldestTemp,ETEMP2);
+
+    DBGPF("New coldest2 temp stored %.2f\n", coldestTemp2);
+   
+    // dtostrf(currentTemp, 8, 2, currentCTemp); // character version of float
+  }
+  //  dtostrf(coldestTemp, 8, 2, coldestCTemp); // character version of float
+  //  DBGPF("currentCTemp=%s coldestCTemp=%s\n",currentCTemp,coldestCTemp); 
 
   // {  // found a colder temperature -- up date the coldest record -- update the eeprom
   //   DBGSNPF(buffer,sizeof(buffer),"Current Colder  -- %s Temp than previous %s  eePROM updated\n",currentCTemp,coldestCTemp);
@@ -4419,14 +4447,76 @@ void setup()
 
   // New eTemp initial read 
   // etempAddr = ETEMP
-  // if (!readETemp(&eTemp),etempAddr)
-  if (!readETemp(&eTemp))
+    // if (!readETemp(&eTemp))
+  // if (!readETemp(&eTemp,etempAddr))
+  // {
+  //   DBGLN("eTemp EEPROM data invalid - initializing");
+  //   eTemp = 79.9;
+  //   writeETemp(eTemp, etempAddr);
+  //   // writeETemp(eTemp);
+  //   coldestTemp = eTemp; // force a update
+  //   DBGPF("Setup() read-set of coldestTemp = %.f\n",coldestTemp);
+  // }
+
+  // // Second copy of eTemp EEPROM at Addr 48
+  //  if (!readETemp(&eTemp2,etempAddr2))
+  // {
+  //   DBGLN("eTemp EEPROM data invalid - initializing");
+  //   eTemp2 = 79.9;
+  //   writeETemp(eTemp2, etempAddr2);
+  //   // writeETemp(eTemp);
+  //   coldestTemp2 = eTemp2; // force a update
+  //   DBGPF("Setup() read-set of coldestTemp2 = %.f\n",coldestTemp2);
+  // }
+
+  // recovery if any eTemp's are bad
+  bool ok1 = readETemp(&eTemp, etempAddr);
+  bool ok2 = readETemp(&eTemp2, etempAddr2);
+
+  DBGLN("Restoring the coldest temps from EEPROM copies");
+  if (ok1 && ok2)
   {
-    DBGLN("eTemp EEPROM data invalid - initializing");
-    eTemp = 79.9;
-    writeETemp(eTemp);
-    coldestTemp = eTemp; // force a update
+      // Both valid
+      if (fabs(eTemp - eTemp2) > 0.01)
+      {
+          DBGLN("EEPROM copies differ - using eTemp");
+          coldestTemp2 = coldestTemp = eTemp2 = eTemp;
+          writeETemp(eTemp2, etempAddr2);
+      }
+      else 
+      {
+        DBGLN("EEPROM copies same - using both eTemp's");
+        coldestTemp = eTemp;
+        coldestTemp2 = eTemp2;
+      }
   }
+  else if (ok1 && !ok2)
+  {
+      DBGLN("eTemp2 invalid - restoring from eTemp");
+
+      coldestTemp2 = eTemp2 = eTemp;
+      writeETemp(eTemp2, etempAddr2);
+  }
+  else if (!ok1 && ok2)
+  {
+      DBGLN("eTemp invalid - restoring from eTemp2");
+
+      coldestTemp = eTemp = eTemp2;
+      writeETemp(eTemp, etempAddr);
+  }
+  else
+  {
+      DBGLN("Both EEPROM copies invalid - initializing");
+
+      eTemp = 79.9;
+      eTemp2 = 79.9;
+
+      writeETemp(eTemp, etempAddr);
+      writeETemp(eTemp2, etempAddr2);
+  }
+
+
+  // touch watchdog
    watchdog_update();
 
   // logEvent call  // Second part fo Watchdog_caused Boot
