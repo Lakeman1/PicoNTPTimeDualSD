@@ -1,7 +1,7 @@
 # Build output
 build/
 SDFiles/
-BuildInfo.h/
+BuildInfo.h
 .gitignore~
 
 # VSCode settings
