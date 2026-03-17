@@ -1,5 +1,8 @@
 # Build output
 build/
+SDFiles/
+BuildInfo.h/
+.gitignore~
 
 # VSCode settings
 .vscode/
@@ -19,5 +22,7 @@ build.options.json
 # OS junk
 .DS_Store
 Thumbs.db
+
+
 
 

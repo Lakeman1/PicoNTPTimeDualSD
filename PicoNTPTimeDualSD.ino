@@ -1,4 +1,5 @@
 #define FW_VERSION "1.0.0"
+#include "BuildInfo.h"
 
 // DEBUGING CODE   ----- Preprocessor code ------------
 #define DEBUG_ENABLE 1   // ← flip to 0 for production
@@ -22,15 +23,11 @@
   #define DBG_BOOL(label,b)
 #endif
 
-
-
-
 // MACROS
 // #define STAGE(s) \
 //     stage = s; \
 //     Serial.printf("Stage -> %s (%d)\n", stageName(stage), stage); \
 //     writeStageEEPROM(stage)
-
 
 #define STAGE_EARLY(s,msg) do { \
     stage = s; \
@@ -134,26 +131,20 @@ bool SPrint = SERIAL_PRINT;
 
 // ------------------------------- DS3231 ------------------
 #include <uRTCLib.h>
-// For eeprom on the DS3231
+// For eeprom  24C32 EEPRO on the DS3231
 #include "uEEPROMLib.h"
-
+// EEPROM MEMORY LAYOUT
 // Addr   Size   Description
 // ----   ----   -----------------------------
 // 0      4      stage of processing
-// 4      8      eTemp  coldest temp
-//               bootCount  moved to 28
+// 4      8      wd_COUNT addr
 // 16     12     TimeSnapshot structure
 // 24     1      NODE_ID
 // 28     4      new bootCount 2 bytes plus
-//               Watchdog circular stage log
-//               (4 slots × 2 bytes)
-//               byte0 = stage
-//               byte1 = stage ^ 0xFF
-//  40    8      eTemp
-//  48    8      eTemp2
+// 40     8      eTemp eTemp  coldest temp
+// 48     8      eTemp2 eTemp2  coldest temp
 
 #define EEPROM_STAGE_ADDR  0
-
 #define EEPROM_LINE_ADDR  1
 
 #define WD_MAGIC 0x5A
@@ -175,9 +166,10 @@ bool SPrint = SERIAL_PRINT;
 // #define EEPROM_BOOTCOUNT_ADDR 28
 #define BOOTCOUNT_MAGIC_ADDR     (BOOTCOUNT_ADDR + sizeof(uint16_t))
 
+// ON the DS3231 module
 // Instantiate RTC object on default I2C (GP0=SDA, GP1=SCL)
 uRTCLib rtc(0x68);  // 0x68 is DS3231 I2C address
-// uEEPROMLib eeprom
+// uEEPROMLib 24C32 EEPROM
 // const uint8_t EEPROM_ADDR = 0x57;
 uEEPROMLib eeprom(0x57);
 
@@ -287,6 +279,8 @@ char logEntry[150] = "";
 // Event globals event files
 #define EVENT_LINE_LEN 128
 #define OLED_EVENT_LEN 48
+
+// Event fileNames
 char evtFile1[15] = "";
 char evtFile2[15] = "";
 char eventLine[EVENT_LINE_LEN] = ""; 
@@ -312,8 +306,6 @@ const uint8_t SD_FAIL_LIMIT = 3;
 bool sd1Healthy = true;
 bool sd2Healthy = true;
 
-
-
 // ------------------ sd end -------------------------
 
 #include <time.h>
@@ -327,13 +319,14 @@ bool sd2Healthy = true;
 // #include <Adafruit_SSD1306.h>
 #include <Adafruit_SSD1306.h>
 
-// ------------  timer cycle
+// ------------  timer cycle -----------------------
 #define TIMECYCLE 300 // seconds // this call back will be used to compare DS3231 time to PICO time and reset PICO time if needed.
 #define SDTIMECYCLE 160  //160 Seconds 
 // Start the repeating timer call back AFTER setup
 // 40,000 µs = 25 FPS smooth fades
 // #define RAINBOW 40000    // 40000 microseconds = .04 sec
 
+// SDD1306
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET    -1
@@ -370,14 +363,13 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 bool pendingWatchdogEvent = false;
 
-
 // OLED Display
 // globals
 bool i2c_ok = true;
 bool bm_ok  = true;
 bool ds_ok  = true;
 
-enum SysEvent {
+enum SysEvent {   // this may not be useful or displayed  -- future removal
     EVT_NONE,
     EVT_BOOT,
     EVT_SENSOR_READ,
@@ -437,17 +429,16 @@ struct SystemHealth {
 #define EVENT_LINES 5
 #define EVENT_LEN   28   // tuned to fit nicely on 128px width
 
-char eventLog[EVENT_LINES][EVENT_LEN];
+char eventLog[EVENT_LINES][EVENT_LEN];  // this may not be useful or displayed  -- future remova
 uint8_t eventHead = 0;
 bool eventWrapped = false;
 
-int32_t driftSeconds = 0;
+int32_t driftSeconds = 0;  // this may not be useful or displayed  -- future remova
 int8_t  timeDriftConfidence = 0;   // -10 to +10
 
 // Boot Counter
 #define EEPROM_LAYOUT_MAGIC 0x42
 // #define EEPROM_MAGIC_ADDR   6
-
 
 uint16_t bootCount = 0;
 
@@ -455,7 +446,7 @@ uint16_t bootCount = 0;
 uint32_t minHeap = 0xFFFFFFFF;
 uint32_t lastHeap = 0;
 
-// NEEDS MORE DEFINITION
+// NEEDS MORE DEFINITION  // this may not be useful or displayed  -- future remova
 SystemHealth health;
 SysEvent currentEvent = EVT_BOOT;
 
@@ -474,7 +465,7 @@ uint32_t hbLast = 0;
 
 uint8_t lastSnapshotDay = 255;
 
-// watch dog stages 
+// watch dog stages   // builds enum
 #define STAGE_LIST \
     X(STAGE_NONE = 0) \
     X(STAGE_SETUP) \
@@ -492,7 +483,6 @@ uint8_t lastSnapshotDay = 255;
     X(STAGE_IDLE) \
     X(STAGE_UNKNOWN)
 
-
 // build enum automatically
 enum CycleStage
 {
@@ -509,7 +499,6 @@ const char* bootResetReason = "POWERON";
 uint16_t watchdogLine = 0;
 
 CycleStage watchdogStage;
-
 
 // #define LOG_INTERVAL_MS 10*60*1000  //10 minutes * 60 seconds/minute * 1000 miliseconds/ second
  
@@ -532,8 +521,8 @@ volatile uint32_t rtc_fail_streak = 0;
 #define LOOP_MAX_MS 2000
 #define LOOP_FAIL_RESET_THRESHOLD 3
 
-volatile uint32_t loop_start_ms = 0;
-volatile uint32_t loop_overrun_streak = 0;
+volatile uint32_t loop_start_ms = 0;               // this may not be being used. 
+volatile uint32_t loop_overrun_streak = 0;          // this may not be being used.
 
 // I2C recovery variables
 #define I2C_FAIL_RESET_THRESHOLD 3
@@ -553,7 +542,7 @@ volatile uint32_t i2c_timeout_count;
 
 //  NEEDS MORE DEFINITION
 volatile uint32_t fs_fail_count;
-volatile uint32_t watchdog_kicks;
+volatile uint32_t watchdog_kicks;           // this may not be being used.
 
 // RTC resync counts
 volatile uint32_t rtc_resync_events;
@@ -596,7 +585,7 @@ uint16_t crc;
 // sd write status
 bool sdWriteStatus = true;
 
-// --------------------------Globals cache variables for PICO
+// -----CACHE'S---------------------Globals cache variables for PICO
 struct {
   uint16_t y;
   uint8_t mo,d,dow,h,m,s;
@@ -677,7 +666,7 @@ float eTemp2;
 char e_string[80] = ""; //51 //61 FOR BME // not currently used
 char e2_string[80] = ""; //51 //61 FOR BME // not currently used
 // ASSERT(sizeof(e_string) >= 80);
-int string_length = 0;
+int string_length = 0;   // not currently used
 
 // globals to store OLED data
 char bufferpi[114];
@@ -729,23 +718,20 @@ struct tm timeinfo;  // made global  from NTP Server
 
 // global  print buffer
 char buffer[200];
-// ASSERT(sizeof(buffer) >= 180);
-
-// --  uEEPROM Data --  stores a julian date
-// long Global_comDate = 0; // not currently used
 
 //  -------------------------------------- functions -------------------------
-// tiny recorder
+// tiny recorder     records the current stage of processing for future failure debugging
 inline void wdRecord(uint16_t line)
 {
+    flLED(eP_LED);
     eeprom_write_u8(EEPROM_WD_MAGIC_ADDR, WD_MAGIC);
+    flLED(eP_LED);
     eeprom.eeprom_write(EEPROM_STAGE_ADDR, stage);
+    flLED(eP_LED);
     eeprom.eeprom_write(EEPROM_LINE_ADDR, line);
 }
 
-
 // OLED functions -------------------------------------------------------------------
-
 // Uptime  - ROUTINE TO BUILD THE LENGTH OF TIME APPLICATION HAS BEEN RUNNING IN HUMAN READABLE FORM
 // GOOD CANDITDATE FOR MY LIBRARY
 void formatUptime(char* buffer, size_t len)
@@ -769,45 +755,31 @@ void drawClockPage()
 
     // ----- TITLE -----
     display.setCursor(0, TITLE_Y);
-    display.print("CLOCK");
+    display.print("CLOCK ");
 
     // RHS indicators (exact positions)
     // display.setCursor(32, TITLE_Y);   // space for 2 symbols only  //NO NO need room for the drawHeartbeat
-    display.setCursor(66, TITLE_Y); 
+    // display.setCursor(56, TITLE_Y); 
     bool rtcSyncOKRtncode =  rtcSyncOK(); // NEEDS TO BE CORRECTLY UPDATED TO A MEANINGFUL VALUE
-    display.printf("S:%c ", rtcSyncOK() ? 'Y' : 'N');
-    display.printf("F:%c", filenameDateOK() ? 'Y' : 'N');
-
-    // display.printf("%c",rtcSyncOKRtncode ? '+' : '-');
-
-    // display.printf("%c",filenameDateOK() ? '+' : '-');
-
-    // display.setCursor(92, TITLE_Y);   // space for 2 symbols only  //NO NO need room for the drawHeartbeat
-
-    // display.print(rtcSyncOK() ? "✓" : "!");
-    // display.print(filenameDateOK() ? "✓" : "!");
+    display.printf("Sync:%c ", rtcSyncOK() ? 'Y' : 'N');
+    display.printf("FNam:%c\n", filenameDateOK() ? 'Y' : 'N');
+    display.printf("  sdA:%c    sdB2:%c", sdA_Ready? 'G' : 'N',sdB_Ready? 'G' : 'N');
 
     // ----- BODY -----
 
-    // display.fillRect(0, 14, 128, 2, SSD1306_BLACK);
+    // display.fillRect(0, 14, 128, 2, SSD1306_BLACK); // I believe it draws a line
 
     display.setCursor(0, BODY_Y);
     display.println(bufferpi);
-    // if(!rtcSyncOK())
-    // {
-    //   display.setCursor(0, BODY_Y + 20);
-    //   display.printf("DRIFT %ld C:%d", driftSeconds, timeDriftConfidence);
-    // }
 
     display.setCursor(0, 38);
     display.println(bufferds);
 }
 
 // OLED Event Display
-void oledEventMessage(const char *msg)
+void oledEventMessage(const char *msg)  // part of logEvent
 {
     display.clearDisplay();
-
     display.setCursor(0,0);
     display.print("SYSTEM EVENT");
 
@@ -855,7 +827,7 @@ void drawCyclePage()
 }
 
 // update Routine  // NOT MEANINGFULL IN CURRENT FORM AS DS3231 AND PICO RTC ARE READ AT DIFFERENT TIMES
-void updateRtcHealth()
+void updateRtcHealth()    // not being used
 {
     driftSeconds = rtcDriftSeconds();
 
@@ -875,12 +847,14 @@ void updateRtcHealth()
 void drawHealthPage()
 {
     // DBG("drawHealthPage");
+    // Yellow
     display.setCursor(0, TITLE_Y);
-    display.println("HEALTH");
+    display.print("HEALTH");  // was println
     // display.setTextSize(2);
     display.setCursor(80, TITLE_Y);
-    display.printf("%.1fC", coldestTemp);   //****
-
+    display.printf("%.1fC\n", coldestTemp);   //****
+    display.printf("EL 1:%lu 2:%lu", evt1Size,evt2Size);
+    // Blue
     display.setCursor(0, BODY_Y);
     // uptime
     char uptimeStr[32];
@@ -895,10 +869,12 @@ void drawHealthPage()
     // display.printf("Min : %lu\n", lastHeap);
     // DBGPF("Heap: %lu Min : %lu\n", lastHeap,lastHeap);
     // event Logs  Leaks
-     display.printf("EL 1:%lu 2:%lu\n", evt1Size,evt2Size);
+    display.printf("  sdA:%c    sdB2:%c", sdA_Ready? 'G' : 'N',sdB_Ready? 'G' : 'N');
+    // display.printf("  BME:%c    DS3231:%c", bmAvailable? 'G' : 'N',rtcOK? 'G' : 'N');
+   
 
 
-    int y = BODY_Y + 24 + 18; // added 10 for bootCount
+    int y = BODY_Y + 24 + 28; // added 10 for bootCount
     // display.setTextSize(1);
     bool any = false;
 
@@ -1071,7 +1047,7 @@ static inline uint32_t secondsOfDay(uint8_t h, uint8_t m, uint8_t s)
 
 
 // Drift calculator // NEEDS CLEARER DEFINITION
-int32_t rtcDriftSeconds()
+int32_t rtcDriftSeconds()       // need investigation
 {
     uint32_t t1 = secondsOfDay(rtc_cache.h,
                                rtc_cache.m,
@@ -1371,6 +1347,7 @@ bool rtcRefresh()
     // char status[10] = "";
     char buffer[200] = "";
 
+    flLED(rtc_LED);
     if (rtc.refresh()) 
     {  // Good
       rtcCacheUpdate();  // cache update
@@ -1436,6 +1413,7 @@ bool rtcRefresh()
 
   // rtcFailCount = 0;  // NO NO do not want to clear count yet  need success to clear
   // Try again to read DS3231 rtc
+  flLED(rtc_LED);
   bool finalOk = rtc.refresh(); // try DS3231 again
 
   if (!finalOk) // NEED TO DISPLAY ON OLED
@@ -1510,6 +1488,7 @@ void writeTimeSnapshot()
     DBG("Once in 24 hours Write TimeSnapshot EEPROM Struct:HEX->:");
     for(uint8_t i=0;i<5;i++)
     {
+        flLED(eP_LED);
         eeprom.eeprom_write(SNAP_ADDR+i, buf[i]);
         delay(5);
         DBGPF("%02X ",buf[i],buf[i]);
@@ -1527,6 +1506,7 @@ bool readTimeSnapshot(TimeSnapshot &snap)
     DBG("In setup Read TimeSnapshot EEPROM Struct:HEX DEC->:");
     for(uint8_t i=0;i<5;i++)
     {
+        flLED(eP_LED);
         buf[i] = eeprom.eeprom_read(SNAP_ADDR+i);
         DBGPF("%02X %02u ",buf[i],buf[i]);
     }
@@ -1591,6 +1571,7 @@ bool recoverRTCfromSnapshot()
 // Minimal RTC Validation (Setup-Safe)
 bool rtcReadValid()
 {
+    flLED(rtc_LED);
     bool rtcrefreshRtnCode = rtc.refresh();
     
     if (!rtcrefreshRtnCode) 
@@ -1726,7 +1707,7 @@ void writeETemp(float temp, uint16_t pAddr )
     flLED(eP_LED);
     // bool status = eeprom.eeprom_write(pAddr, block.raw);   // changed from &block.data
     // bool status = eeprom.eeprom_write(pAddr,(uint8_t*)&block.data,sizeof(block.data));
-      bool status = eeprom.eeprom_write(pAddr,(uint8_t*)block.raw,sizeof(block.raw));
+    bool status = eeprom.eeprom_write(pAddr,(uint8_t*)block.raw,sizeof(block.raw));
 
     delay(10);
     DBGPF("\neTemp Dump of after write pAddr ADDR:%d\n",pAddr);
@@ -1781,6 +1762,7 @@ bool readETemp(float *temp,uint16_t pAddr)
 
     DBGPF("Sizeof block = %u\n", sizeof(block.data)); // changed from block.data
     // eeprom.eeprom_read(pAddr, (uint8_t*)&block.data, sizeof(block.data));
+    flLED(eP_LED);
     eeprom.eeprom_read(pAddr, (uint8_t*)block.raw, sizeof(block.raw));
     // delay(15);
 
@@ -2588,7 +2570,7 @@ bool readRTC()
     // julian Dates
     int jul = 0;
     long compDate = 0;
-    // DBG("\n\n*****recdRTC ****** \n");
+    // DBG("\n\n*****recdRTC ****** \n");  
   
     flLED(LED_BUILTIN);
     bool rtcgetRtnCode = rtc_get_datetime(&t);
@@ -2608,7 +2590,7 @@ bool readRTC()
       return false;
     }
 
-    // refresh current  PICO RTC data to pico_rtc_cache  Global struct
+    // refresh current  PICO RTC data to pico_rtc_cache  Global struct   // maybe put following routine into a function
     pico_rtc_cache.y = t.year;
     pico_rtc_cache.mo = t.month;
     pico_rtc_cache.d = t.day;
@@ -2640,66 +2622,6 @@ bool readRTC()
 
   return true;
 }
-
-// // alarm interupt callback
-// void alarm_callback() {
-//     char buffer[64];
-//     // Serial.print("Alarm Call Back: ");
-//     snprintf(buffer, sizeof(buffer),
-//              "ALARM TRIGGERED! ");
-
-//     // Serial.print("Alarm Call Back: ");
-
-//     Serial.println(buffer);
-//     flash(LED_PIN1,10,60);
-//     // Display on OLED
-//     display.stopscroll();
-//     display.clearDisplay();
-//     display.display();
-//     delay(1000);
-//     display.setTextSize(2);
-//     display.setCursor(0, 0);
-//     display.println("Alarm!!:");
-//     display.setTextSize(1);
-//     display.setCursor(0, 30);
-//     display.println(buffer);
-//     display.display();
-//     delay(1000);
-//     display.startscrollright(0x00,0x01);
-//     // Serial.println("ALARM TRIGGERED! It is 9:00 AM!");
-// }
-
-// // function to set the alarm interupt 
-// void set_alarm(int8_t aHour, int8_t aMinute) // (int aHour, int aMinute)
-// {
-//   char buffer[64];
-//   // Configure alarm
-//   datetime_t alarm = {
-//       .year  = -1,   // wildcards = every day
-//       .month = -1,
-//       .day   = -1,
-//       .dotw  = -1,
-//       .hour  = aHour,  // at 6 pm  // aHour
-//       .min   = aMinute,   // aMinute
-//       .sec   = 0
-//   };
- 
-//   rtc_set_alarm(&alarm, alarm_callback);
-    
-//   Serial.print("Setting Alarm Call Back: ");
-//   snprintf(buffer, sizeof(buffer),"ALARM set for %02d:%02d\n",aHour,aMinute);
-//   Serial.println(buffer);
-// }
-
-//  helper to standardize formatting DS3231 time print
-// bool formatTimestamp(char *buf, size_t len) {
-//     if (!rtc_ok) return false;
-
-//     return snprintf(buf, len,
-//         "DS:%02d-%02d-%02d %02d:%02d:%02d\n %s\n",
-//         rtc_cache.y, rtc_cache.mo, rtc_cache.d,
-//         rtc_cache.h, rtc_cache.m, rtc_cache.s,t) > 0;
-// }
 
 
 // print the current DS3231 time
@@ -3134,6 +3056,7 @@ void OLEDinit()
 // Clear WatchdogEscalation
 void clearWatchdogEscalation()
 {
+    flLED(eP_LED);
     eeprom.eeprom_write(EEPROM_WD_COUNT_ADDR, 0);
 }
 
@@ -3145,10 +3068,12 @@ void watchdogEscalationCheck()
         return;
 
     uint8_t lastStage = readStageEEPROM();
+    flLED(eP_LED);
     uint8_t count     = eeprom.eeprom_read(EEPROM_WD_COUNT_ADDR);
 
     count++;
 
+    flLED(eP_LED);
     eeprom.eeprom_write(EEPROM_WD_COUNT_ADDR, count);
 
     Serial.printf("WD Reboot Stage=%u Count=%u\n", lastStage, count);
@@ -3195,6 +3120,7 @@ void setNodeID(uint8_t id)
         return;
 
     NODE_ID = id;
+    flLED(eP_LED);
     eeprom.eeprom_write(NODE_ID_ADDR, (byte*)&NODE_ID, sizeof(NODE_ID));
 }
 
@@ -3209,12 +3135,14 @@ void writeStageEEPROM(uint8_t stage)
 
     lastStage = stage;
 
+    flLED(eP_LED);
     eeprom.eeprom_write(EEPROM_STAGE_ADDR, stage);
 }
 
 // and read rooutine
 uint8_t readStageEEPROM()
 {
+  flLED(eP_LED);
   return eeprom.eeprom_read(EEPROM_STAGE_ADDR);
 }
 
@@ -3285,6 +3213,7 @@ void setup()
   #endif
 
   // check magic marker
+  flLED(eP_LED);
   uint8_t magic = eeprom_read_u8(EEPROM_WD_MAGIC_ADDR);
 
   if (watchdog_caused_reboot() && magic == WD_MAGIC)
@@ -3376,6 +3305,7 @@ void setup()
   for (int i=0;i<64;i++)
   {
       if (i%16==0) Serial.printf("\n%02d: ",i);
+      flLED(eP_LED);
       Serial.printf("%02X ", eeprom.eeprom_read(i));
   }
   Serial.println();
@@ -3384,12 +3314,14 @@ void setup()
   for (int i=0;i<64;i++)
   {
       if (i%16==0) Serial.printf("\n%02d: ",i);
+      flLED(eP_LED);
       Serial.printf("%02u ", eeprom.eeprom_read(i));
   }
   Serial.println("\n\n");
 
   // load the Node ID 
   uint8_t id;
+  flLED(eP_LED);
   eeprom.eeprom_read(NODE_ID_ADDR, (byte*)&id, sizeof(id));
 
   if (id == 0xFF || id < 1 || id > 3)
@@ -3411,10 +3343,12 @@ void setup()
   flLED(eP_LED);
   for (int i=0;i<8;i++)
   {
+      flLED(eP_LED);
       uint8_t b = eeprom.eeprom_read(BOOTCOUNT_ADDR+i);
       DBGPF("%02X ", b);
   }
 
+  flLED(eP_LED);
   bootCount = eeprom_read_u16(BOOTCOUNT_ADDR);
 
   DBGPF("Setup bootCount read:%" PRIu16 "\n\n",bootCount);
@@ -3816,9 +3750,10 @@ void setup()
       // Clear the event
       pendingWatchdogEvent = false;
       // clear the entry
- 
+      flLED(eP_LED);
       eeprom_write_u8(EEPROM_WD_MAGIC_ADDR, 0);
       writeStageEEPROM(STAGE_NONE);
+      flLED(eP_LED);
       eeprom_write_u16(EEPROM_LINE_ADDR, 0);
       
       DBGPF("After - Dump of Stage Addr for 8 chars ADDR:%d",EEPROM_STAGE_ADDR);
@@ -4005,6 +3940,7 @@ void loop()
     STAGE(STAGE_DONE,"10 Min Loop Done");
 
     // Reset Watch_dog Stage Counter on Success
+    flLED(eP_LED);
     eeprom.eeprom_write(EEPROM_WD_COUNT_ADDR, 0);
     health.cycle_count++;  // what is it telling me?
   }
