@@ -1,7 +1,13 @@
+# Global ignores
+*.swp
+*.tmp
+*~
+
 # Build output
 build/
 SDFiles/
 BuildInfo.h
+Global.gitignore.txt
 .gitignore~
 
 # VSCode settings
@@ -14,7 +20,7 @@ BuildInfo.h
 *.hex
 *.map
 *.d
-*.~
+
 compile_commands.json
 build.options.json
 .last-used

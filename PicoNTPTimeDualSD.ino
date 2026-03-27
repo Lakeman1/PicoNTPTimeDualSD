@@ -29,6 +29,28 @@
 //     Serial.printf("Stage -> %s (%d)\n", stageName(stage), stage); \
 //     writeStageEEPROM(stage)
 
+/*
+Breadboard wiring 
+POWER
+SD1 pin 26
+SD2 pin 27
+DS  pin 15
+
+LED's 
+DS  pin 14
+24C32 pin 8 (eeprom)
+SD1 pin 28
+SD2 pin 21
+BMP pin 22
+Pico built-in
+
+
+
+*/
+
+
+
+
 #define STAGE_EARLY(s,msg) do { \
     stage = s; \
     DBGPF("Stage:%d %s\n",stage,stageToStr(stage)); \
@@ -246,9 +268,9 @@ uint8_t NODE_ID = 1;
 // -------------- DS3231 ----------  constants 
 const uint8_t rtc_PWR = 15; //DS3231 power control via n-mosfed gnd switch
 
-const uint8_t rtc_LED = 14; // DS3231 activity LED
-const uint8_t pi_LED  = 22; // PICO activity LED
-const uint8_t eP_LED  =  8; // 24C32 EEPROM activity LED
+// const uint8_t rtc_LED = 14; // DS3231 activity LED
+// const uint8_t pi_LED  = 22; // PICO activity LED // BME
+// const uint8_t eP_LED  =  8; // 24C32 EEPROM activity LED
 
 #define DEGREE "\xC2\xB0" // degree symbol
 
@@ -359,6 +381,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define CURRENT_HPA (1013)    // RICHMOND --- TO BE SET
 
 // Global  Variables: ------------------- Globals -------------------------
+
+
+
 // watchdog
 
 bool pendingWatchdogEvent = false;
@@ -424,6 +449,17 @@ struct SystemHealth {
 };
 
 // Globals 
+
+struct LedPulse {
+    int pin;
+    bool active;
+    unsigned long startTime;
+};
+
+LedPulse ledRTC    = {14, false, 0};
+LedPulse ledEEPROM = {8, false, 0};
+LedPulse ledBME    = {22, false, 0};
+LedPulse ledPICO   = {LED_BUILTIN, false, 0};
 
 // OLED Event System  ----- NEEDS MORE DEFINITION
 #define EVENT_LINES 5
@@ -723,11 +759,11 @@ char buffer[200];
 // tiny recorder     records the current stage of processing for future failure debugging
 inline void wdRecord(uint16_t line)
 {
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom_write_u8(EEPROM_WD_MAGIC_ADDR, WD_MAGIC);
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_write(EEPROM_STAGE_ADDR, stage);
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_write(EEPROM_LINE_ADDR, line);
 }
 
@@ -763,7 +799,7 @@ void drawClockPage()
     bool rtcSyncOKRtncode =  rtcSyncOK(); // NEEDS TO BE CORRECTLY UPDATED TO A MEANINGFUL VALUE
     display.printf("Sync:%c ", rtcSyncOK() ? 'Y' : 'N');
     display.printf("FNam:%c\n", filenameDateOK() ? 'Y' : 'N');
-    display.printf("  sdA:%c    sdB2:%c", sdA_Ready? 'G' : 'N',sdB_Ready? 'G' : 'N');
+    display.printf("  sdA:%c    sdB:%c", sdA_Ready? 'G' : 'N',sdB_Ready? 'G' : 'N');
 
     // ----- BODY -----
 
@@ -869,7 +905,7 @@ void drawHealthPage()
     // display.printf("Min : %lu\n", lastHeap);
     // DBGPF("Heap: %lu Min : %lu\n", lastHeap,lastHeap);
     // event Logs  Leaks
-    display.printf("  sdA:%c    sdB2:%c", sdA_Ready? 'G' : 'N',sdB_Ready? 'G' : 'N');
+    display.printf("  sdA:%c    sdB:%c", sdA_Ready? 'G' : 'N',sdB_Ready? 'G' : 'N');
     // display.printf("  BME:%c    DS3231:%c", bmAvailable? 'G' : 'N',rtcOK? 'G' : 'N');
    
 
@@ -1075,7 +1111,7 @@ bool rtcSyncOK()
 // Filename Date Check
 bool filenameDateOK()
 {
-    return (currentYear > 2023 && currentMth >=1 && currentMth <=12);
+    return (currentYear > 23 && currentMth >=1 && currentMth <=12); //just year not century year
 }
 
 
@@ -1347,7 +1383,7 @@ bool rtcRefresh()
     // char status[10] = "";
     char buffer[200] = "";
 
-    flLED(rtc_LED);
+    led_pulse_start(ledRTC);
     if (rtc.refresh()) 
     {  // Good
       rtcCacheUpdate();  // cache update
@@ -1413,7 +1449,7 @@ bool rtcRefresh()
 
   // rtcFailCount = 0;  // NO NO do not want to clear count yet  need success to clear
   // Try again to read DS3231 rtc
-  flLED(rtc_LED);
+  led_pulse_start(ledRTC);
   bool finalOk = rtc.refresh(); // try DS3231 again
 
   if (!finalOk) // NEED TO DISPLAY ON OLED
@@ -1436,7 +1472,7 @@ bool rtcRefresh()
 bool rtcSafeRefresh() {
     if (i2cDevicePresent(0x68) == 0) {
         rtc.refresh();
-        flLED(rtc_LED);
+        led_pulse_start(ledRTC);
         return true;
     }
 
@@ -1446,7 +1482,7 @@ bool rtcSafeRefresh() {
 
     if (i2cDevicePresent(0x68) == 0) {
         rtc.refresh();
-        flLED(rtc_LED);
+        led_pulse_start(ledRTC);
     
         return true;
     }
@@ -1488,7 +1524,7 @@ void writeTimeSnapshot()
     DBG("Once in 24 hours Write TimeSnapshot EEPROM Struct:HEX->:");
     for(uint8_t i=0;i<5;i++)
     {
-        flLED(eP_LED);
+        led_pulse_start(ledEEPROM);
         eeprom.eeprom_write(SNAP_ADDR+i, buf[i]);
         delay(5);
         DBGPF("%02X ",buf[i],buf[i]);
@@ -1506,7 +1542,7 @@ bool readTimeSnapshot(TimeSnapshot &snap)
     DBG("In setup Read TimeSnapshot EEPROM Struct:HEX DEC->:");
     for(uint8_t i=0;i<5;i++)
     {
-        flLED(eP_LED);
+        led_pulse_start(ledEEPROM);
         buf[i] = eeprom.eeprom_read(SNAP_ADDR+i);
         DBGPF("%02X %02u ",buf[i],buf[i]);
     }
@@ -1571,7 +1607,7 @@ bool recoverRTCfromSnapshot()
 // Minimal RTC Validation (Setup-Safe)
 bool rtcReadValid()
 {
-    flLED(rtc_LED);
+    led_pulse_start(ledRTC);
     bool rtcrefreshRtnCode = rtc.refresh();
     
     if (!rtcrefreshRtnCode) 
@@ -1704,7 +1740,7 @@ void writeETemp(float temp, uint16_t pAddr )
       block.data.crc,
       block.data.magic);
 
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     // bool status = eeprom.eeprom_write(pAddr, block.raw);   // changed from &block.data
     // bool status = eeprom.eeprom_write(pAddr,(uint8_t*)&block.data,sizeof(block.data));
     bool status = eeprom.eeprom_write(pAddr,(uint8_t*)block.raw,sizeof(block.raw));
@@ -1714,7 +1750,7 @@ void writeETemp(float temp, uint16_t pAddr )
     
     for (int i=0;i<8;i++)
     {
-        flLED(eP_LED);
+        led_pulse_start(ledEEPROM);
         uint8_t b = eeprom.eeprom_read(pAddr+i);
     DBGPF("%02X ", b);
     }
@@ -1751,18 +1787,18 @@ void writeETemp(float temp, uint16_t pAddr )
 bool readETemp(float *temp,uint16_t pAddr)
 {
     ETempUnion block;
-    DBGPF("\neTemp Dump of pAddr after read ADDR:%d\n",pAddr);
-    flLED(eP_LED);
-    for (int i=0;i<8;i++)
-    {
-        uint8_t b = eeprom.eeprom_read(pAddr+i);
-        DBGPF("%02X ", b);
-    }
-    DBGLN("\n");
+    // DBGPF("\neTemp Dump of pAddr after read ADDR:%d\n",pAddr);
+    // led_pulse_start(ledEEPROM);
+    // for (int i=0;i<8;i++)
+    // {
+    //     uint8_t b = eeprom.eeprom_read(pAddr+i);
+    //     DBGPF("%02X ", b);
+    // }
+    // DBGLN("\n");
 
     DBGPF("Sizeof block = %u\n", sizeof(block.data)); // changed from block.data
     // eeprom.eeprom_read(pAddr, (uint8_t*)&block.data, sizeof(block.data));
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_read(pAddr, (uint8_t*)block.raw, sizeof(block.raw));
     // delay(15);
 
@@ -1970,7 +2006,7 @@ bool BM_Read()
   float altimeter = 0;
   float humidity = 0;
 
-  flLED(pi_LED);
+  led_pulse_start(ledBME);  //?
   #ifdef BMP280
     pressure = bmp.readPressure() / 100.0;   // hPa
     temperature = bmp.readTemperature();
@@ -2064,7 +2100,7 @@ void mapSpiPins(const sd_bus_t &bus)
 
 // SD LED controls
 void sdOn(int8_t led) { digitalWrite(led,HIGH);}
-void sdOff(int8_t led) { delay(15); digitalWrite(led,LOW);}
+void sdOff(int8_t led) { digitalWrite(led,LOW);}
 
 void spiPinMapping(sd_bus_t &busA,sd_bus_t &busB)
 {
@@ -2572,7 +2608,7 @@ bool readRTC()
     long compDate = 0;
     // DBG("\n\n*****recdRTC ****** \n");  
   
-    flLED(LED_BUILTIN);
+    led_pulse_start(ledPICO);
     bool rtcgetRtnCode = rtc_get_datetime(&t);
     delay(100);
     if (!rtcgetRtnCode) DBG_BOOL("readRTC() => PICO rtc_get_datetime BAD RtnCode:",rtcgetRtnCode);
@@ -2663,7 +2699,7 @@ bool rtcPICOOK()
       DBG_BOOL("rtcPICOOK PICO get time RtnCode:",rtcgetRtnCode);
     // rtc_get_datetime(&t); 
 
-    flLED(LED_BUILTIN);  //flash LED
+    led_pulse_start(ledPICO);  //flash LED
 
     bool rtcPICOrtN = true;  // will return true unless sanity check changes 
 
@@ -2692,7 +2728,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10)
   delay(100);
   // Serial.printf("SfFat PICO get time RtnCode: %s\n",rtcgetRtnCode?"true":"false");
   // DBG_BOOL("SfFat PICO get time RtnCode:",rtcgetRtnCode);
-  flLED(LED_BUILTIN);
+  led_pulse_start(ledPICO);
   *date = FS_DATE(t.year, t.month, t.day);
   *time = FS_TIME(t.hour, t.min, t.sec);
   *ms10 = 0;
@@ -2706,7 +2742,7 @@ bool syncPicoToDS3231() {
   delay(100);
   DBG_BOOL("syncPicotoDS3231 PICO get time RtnCode:",rtcgetRtnCode);
   // rtc_get_datetime(&t);
-  flLED(LED_BUILTIN); 
+  led_pulse_start(ledPICO); 
 
   // Set the DS3231 RTC using uRTCLib's set function
   // The uRTCLib set function expects parameters in a specific order: 
@@ -2770,7 +2806,7 @@ bool syncDS3231ToPico()
    char buffer[200] = "";
   // Update internal library variables from the physical DS3231
   rtcRefresh();
-  flLED(rtc_LED);
+  led_pulse_start(ledRTC);
   if (!rtc_ok)
   {  
     DBGPF("DS rtc failed RTC sanity check:%d",rtc_ok);
@@ -2990,7 +3026,7 @@ bool syncTimeFromNTP()
           pico_rtc_cache.y, pico_rtc_cache.mo, pico_rtc_cache.d, pico_rtc_cache.h, pico_rtc_cache.m, pico_rtc_cache.s);
   DBG(buffer);
 
-  flLED(LED_BUILTIN);  // flash LED
+  led_pulse_start(ledPICO);  // flash LED
 
   DBG("Setting PICO RTC Time - rtc_set_datetime()\n");
   bool rtcsetRtnCode = rtc_set_datetime(&t);
@@ -3056,7 +3092,7 @@ void OLEDinit()
 // Clear WatchdogEscalation
 void clearWatchdogEscalation()
 {
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_write(EEPROM_WD_COUNT_ADDR, 0);
 }
 
@@ -3068,12 +3104,12 @@ void watchdogEscalationCheck()
         return;
 
     uint8_t lastStage = readStageEEPROM();
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     uint8_t count     = eeprom.eeprom_read(EEPROM_WD_COUNT_ADDR);
 
     count++;
 
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_write(EEPROM_WD_COUNT_ADDR, count);
 
     Serial.printf("WD Reboot Stage=%u Count=%u\n", lastStage, count);
@@ -3120,7 +3156,7 @@ void setNodeID(uint8_t id)
         return;
 
     NODE_ID = id;
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_write(NODE_ID_ADDR, (byte*)&NODE_ID, sizeof(NODE_ID));
 }
 
@@ -3135,14 +3171,14 @@ void writeStageEEPROM(uint8_t stage)
 
     lastStage = stage;
 
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_write(EEPROM_STAGE_ADDR, stage);
 }
 
 // and read rooutine
 uint8_t readStageEEPROM()
 {
-  flLED(eP_LED);
+  led_pulse_start(ledEEPROM);
   return eeprom.eeprom_read(EEPROM_STAGE_ADDR);
 }
 
@@ -3190,6 +3226,42 @@ void eeprom_write_u32(uint16_t addr, uint32_t value)
     eeprom.eeprom_write(addr, (uint8_t*)&value);
 }
 
+// Replace LED modules
+
+
+// LED at Modules
+// LedPulse ledSD1    = {28, false, 0};
+// LedPulse ledSD2    = {21, false, 0};
+// LedPulse rtc_LED    = {14, false, 0};
+// LedPulse eP_LED = {8, false, 0};
+// LedPulse pi_LED    = {22, false, 0};
+// LedPulse ledPICO   = {LED_BUILTIN, false, 0};
+
+
+
+  // led_init(rtc_LED);
+  // led_init(pi_LED);
+  // led_init(eP_LED);
+  // led_init(LED_BUILTIN);
+
+void led_init(LedPulse &led) {
+    pinMode(led.pin, OUTPUT);
+    digitalWrite(led.pin, LOW);
+}
+
+void led_pulse_start(LedPulse &led) {
+    digitalWrite(led.pin, HIGH);
+    led.active = true;
+    led.startTime = millis();
+}
+
+void led_pulse_update(LedPulse &led, unsigned long duration = 50) {
+    if (led.active && (millis() - led.startTime >= duration)) {
+        digitalWrite(led.pin, LOW);
+        led.active = false;
+    }
+}
+
 #define WATCHDOG_SETUP_TIMEOUT 10000
 #define WATCHDOG_RUN_TIMEOUT   3000
 
@@ -3213,7 +3285,7 @@ void setup()
   #endif
 
   // check magic marker
-  flLED(eP_LED);
+  led_pulse_start(ledEEPROM);
   uint8_t magic = eeprom_read_u8(EEPROM_WD_MAGIC_ADDR);
 
   if (watchdog_caused_reboot() && magic == WD_MAGIC)
@@ -3244,17 +3316,25 @@ void setup()
   DBG("Ensure I2C pins are NOT driving\n");
   pinMode(SDA, INPUT);      //I2C
   pinMode(SCL, INPUT);      //I2C
-  pinMode(rtc_LED, OUTPUT); // DS3231 Time activity
-  pinMode(pi_LED, OUTPUT);  // BMx  Time activity
-  pinMode(eP_LED, OUTPUT);  // 24C32  EEPROM activity
-  pinMode(LED_BUILTIN, OUTPUT); //pico Time
+
+  // Init the LED's 
+  led_init(ledRTC); // DS3231 Time activity
+  led_init(ledBME);  // BMx  Time activity
+  led_init(ledEEPROM);  // 24C32  EEPROM activity
+  led_init(ledPICO);  //pico Time
+
+  // pinMode(rtc_LED, OUTPUT); 
+  // pinMode(pi_LED, OUTPUT);
+  // pinMode(eP_LED, OUTPUT);
+  // pinMode(LED_BUILTIN, OUTPUT);
+ 
 
   delay(100);
-  // test LED
-  flLED(pi_LED);
-  flLED(rtc_LED);
-  flLED(eP_LED);
-  flLED(LED_BUILTIN);
+  // test LED // turn on then off to test
+  // led_pulse_start(pi_LED);
+  // led_pulse_start(rtc_LED);
+  // led_pulse_start(eP_LED);
+  // led_pulse_start(LED_BUILTIN);
   
   // NOW set Boot I2C stage 
   STAGE_EARLY(STAGE_BOOT_I2C,"I2C");  
@@ -3277,7 +3357,7 @@ void setup()
   {
       DBGLN("RTC present and OK");
       rtc.refresh();
-      flLED(rtc_LED);
+      led_pulse_start(ledRTC);
   } else 
   {
       Serial.println("RTC bus error at boot  --- TROUBLE \n");
@@ -3290,38 +3370,38 @@ void setup()
   //setNodeID(1);   // NEW BREADBOARD SET TO 2 OR 3 DEPENDING
 
   // List of EEPROM ADDRESSES:
-  DBG("EEPROM ADDR:\n");
-  Serial.printf("Stage addr \t\t= %u\n", EEPROM_STAGE_ADDR);
-  Serial.printf("Stage line addr \t= %u\n", EEPROM_LINE_ADDR);
-  Serial.printf("wd count addr \t\t= %u\n", EEPROM_WD_COUNT_ADDR);
-  Serial.printf("Snap addr \t\t= %u\n", SNAP_ADDR);
-  Serial.printf("Node id addr \t\t= %u\n", NODE_ID_ADDR);
-  Serial.printf("BootCount addr \t\t= %u\n", BOOTCOUNT_ADDR);
-  Serial.printf("BootCount magic addr \t= %u\n", BOOTCOUNT_MAGIC_ADDR);
-  Serial.printf("Temp addr \t\t= %u\n", ETEMP);
+  // DBG("EEPROM ADDR:\n");
+  // Serial.printf("Stage addr \t\t= %u\n", EEPROM_STAGE_ADDR);
+  // Serial.printf("Stage line addr \t= %u\n", EEPROM_LINE_ADDR);
+  // Serial.printf("wd count addr \t\t= %u\n", EEPROM_WD_COUNT_ADDR);
+  // Serial.printf("Snap addr \t\t= %u\n", SNAP_ADDR);
+  // Serial.printf("Node id addr \t\t= %u\n", NODE_ID_ADDR);
+  // Serial.printf("BootCount addr \t\t= %u\n", BOOTCOUNT_ADDR);
+  // Serial.printf("BootCount magic addr \t= %u\n", BOOTCOUNT_MAGIC_ADDR);
+  // Serial.printf("Temp addr \t\t= %u\n", ETEMP);
 
   // DUMP OF THE EEPROM
-  DBG("\n\nDUMP OF THE EEPROM - FIRST 64 ADDRESSES (HEX):\n");
-  for (int i=0;i<64;i++)
-  {
-      if (i%16==0) Serial.printf("\n%02d: ",i);
-      flLED(eP_LED);
-      Serial.printf("%02X ", eeprom.eeprom_read(i));
-  }
-  Serial.println();
+  // DBG("\n\nDUMP OF THE EEPROM - FIRST 64 ADDRESSES (HEX):\n");
+  // for (int i=0;i<64;i++)
+  // {
+  //     if (i%16==0) Serial.printf("\n%02d: ",i);
+  //     led_pulse_start(eP_LED);
+  //     Serial.printf("%02X ", eeprom.eeprom_read(i));
+  // }
+  // Serial.println();
 
-  DBG("DUMP OF THE EEPROM - FIRST 64 ADDRESSES (DEC):\n");
-  for (int i=0;i<64;i++)
-  {
-      if (i%16==0) Serial.printf("\n%02d: ",i);
-      flLED(eP_LED);
-      Serial.printf("%02u ", eeprom.eeprom_read(i));
-  }
-  Serial.println("\n\n");
+  // DBG("DUMP OF THE EEPROM - FIRST 64 ADDRESSES (DEC):\n");
+  // for (int i=0;i<64;i++)
+  // {
+  //     if (i%16==0) Serial.printf("\n%02d: ",i);
+  //     led_pulse_start(eP_LED);
+  //     Serial.printf("%02u ", eeprom.eeprom_read(i));
+  // }
+  // Serial.println("\n\n");
 
   // load the Node ID 
   uint8_t id;
-  flLED(eP_LED);
+  led_pulse_start(ledEEPROM);
   eeprom.eeprom_read(NODE_ID_ADDR, (byte*)&id, sizeof(id));
 
   if (id == 0xFF || id < 1 || id > 3)
@@ -3339,22 +3419,22 @@ void setup()
 
     // eeprom.eeprom_read(BOOTCOUNT_ADDR, (byte*)&bootCount, sizeof(bootCount));
 
-  DBGPF("\nBefore write dump of BOOTCOUNT_ADDR: %d\n",BOOTCOUNT_ADDR);
-  flLED(eP_LED);
-  for (int i=0;i<8;i++)
-  {
-      flLED(eP_LED);
-      uint8_t b = eeprom.eeprom_read(BOOTCOUNT_ADDR+i);
-      DBGPF("%02X ", b);
-  }
+  // DBGPF("\nBefore write dump of BOOTCOUNT_ADDR: %d\n",BOOTCOUNT_ADDR);
+  // led_pulse_start(ledEEPROM);
+  // for (int i=0;i<8;i++)
+  // {
+  //     led_pulse_start(eP_LED);
+  //     uint8_t b = eeprom.eeprom_read(BOOTCOUNT_ADDR+i);
+  //     DBGPF("%02X ", b);
+  // }
 
-  flLED(eP_LED);
+  led_pulse_start(ledEEPROM);
   bootCount = eeprom_read_u16(BOOTCOUNT_ADDR);
 
   DBGPF("Setup bootCount read:%" PRIu16 "\n\n",bootCount);
 
   // check magic
-  flLED(eP_LED);
+  led_pulse_start(ledEEPROM);
   magic  = eeprom.eeprom_read(BOOTCOUNT_MAGIC_ADDR);
 
   if (magic != EEPROM_LAYOUT_MAGIC)
@@ -3362,20 +3442,20 @@ void setup()
       DBG("Magic failed setting bootCount to 0");
       bootCount = 0;
       // writing bootCount
-      flLED(eP_LED);
+      led_pulse_start(ledEEPROM);
       eeprom_write_u16(BOOTCOUNT_ADDR, bootCount);
       //  writing bootCount Magic
-      flLED(eP_LED);
+      led_pulse_start(ledEEPROM);
       eeprom.eeprom_write(BOOTCOUNT_MAGIC_ADDR, EEPROM_LAYOUT_MAGIC);
       DBGPF("Setup Updated MAGIC & New bootCount:%" PRIu16 "\n",bootCount);
-      // dump memory
-      for (int i=0;i<8;i++)
-      {
-          flLED(eP_LED);
-          uint8_t b = eeprom.eeprom_read(BOOTCOUNT_ADDR+i);
-          DBGPF("%02X ", b);
-      }
-      DBG("\n");
+      // // dump memory
+      // for (int i=0;i<8;i++)
+      // {
+      //     led_pulse_start(eP_LED);
+      //     uint8_t b = eeprom.eeprom_read(BOOTCOUNT_ADDR+i);
+      //     DBGPF("%02X ", b);
+      // }
+      // DBG("\n");
   }
 
   // Now bootCount
@@ -3383,24 +3463,24 @@ void setup()
   {
     DBG("bootCount over 1000 resetting to 0");
     bootCount = 0;
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom_write_u16(BOOTCOUNT_ADDR, bootCount);
     DBGPF("Setup reset value of bootCount:%" PRIu16 "\n",bootCount);
   } 
   else bootCount++;
   // rewrite bootCount
   DBGPF("Setup bootCount incremented by 1 new value:%" PRIu16 "\n\n",bootCount);
-  flLED(eP_LED);
+  led_pulse_start(ledEEPROM);
   eeprom_write_u16(BOOTCOUNT_ADDR, bootCount);
-  DBGPF("after write dump of BOOTCOUNT_ADDR ");
+  // DBGPF("after write dump of BOOTCOUNT_ADDR ");
   
-  for (int i=0;i<8;i++)
-  {
-      flLED(eP_LED);
-      uint8_t b = eeprom.eeprom_read(BOOTCOUNT_ADDR+i);
-      DBGPF("%02X ", b);
-  }
-  DBGLN("\n");
+  // for (int i=0;i<8;i++)
+  // {
+  //     led_pulse_start(eP_LED);
+  //     uint8_t b = eeprom.eeprom_read(BOOTCOUNT_ADDR+i);
+  //     DBGPF("%02X ", b);
+  // }
+  // DBGLN("\n");
 
   // boot Detection Logic
   watchdogEscalationCheck();
@@ -3420,21 +3500,21 @@ void setup()
 
   // initialize the PICO RTC   --- Must be done here!!
   rtc_init();
-  DBG("PICO RTC Initialized rtc_init() called !");
+  DBG("PICO RTC Initialized rtc_init() called!");
 
  // ---------------------- Recover Time  ------------------------  
 
-  delay(100); // let things catch up so we get print
+  delay(50); // let things catch up so we get print
   watchdog_update();
 
   DBG("\n ******************  Time Recovery in Progress ******************\n");
   TimeSnapshot snap;  // alloc memory for struct
 
   bool snapOK = readTimeSnapshot(snap); // Read the EEPROM
-  DBGPF("snapOK rtn code: %s",snapOK?"true":"false");
+  DBGPF("snapOK rtn code: %s\n",snapOK?"true":"false");
 
   bool rtcValid = rtcReadValid();  // read DS3231 RTC
-  DBGPF("rtcValid rtn code: %s",rtcValid?"true":"false");
+  DBGPF("rtcValid rtn code: %s\n",rtcValid?"true":"false");
 
   if (rtcValid)  // First try the DS3231 battery time
   {
@@ -3720,7 +3800,7 @@ void setup()
       //  Read potential crash line
       DBGPF("Setup() - pendingWatchdogEvent EEPROM_STAGE_ADDR  ADDRESS: %d:\n",EEPROM_STAGE_ADDR);
       watchdogStage = (CycleStage)readStageEEPROM();
-      flLED(eP_LED);
+      led_pulse_start(ledEEPROM);
       watchdogLine = eeprom_read_u16(EEPROM_LINE_ADDR);
 
       DBGPF("watchdogStage:%",PRIu8 "watchdogLine:%" PRIu16 "\n",watchdogStage,watchdogLine);
@@ -3728,7 +3808,7 @@ void setup()
       DBGPF("Before - Dump of Stage Addr for 8 chars ADDR:%d",EEPROM_STAGE_ADDR);
       for (int i=0;i<8;i++)
       {
-          flLED(eP_LED);
+          led_pulse_start(ledEEPROM);
           uint8_t b = eeprom.eeprom_read(EEPROM_STAGE_ADDR+i);
           DBGPF("%02X ", b);
       }
@@ -3750,16 +3830,16 @@ void setup()
       // Clear the event
       pendingWatchdogEvent = false;
       // clear the entry
-      flLED(eP_LED);
+      led_pulse_start(ledEEPROM);
       eeprom_write_u8(EEPROM_WD_MAGIC_ADDR, 0);
       writeStageEEPROM(STAGE_NONE);
-      flLED(eP_LED);
+      led_pulse_start(ledEEPROM);
       eeprom_write_u16(EEPROM_LINE_ADDR, 0);
       
       DBGPF("After - Dump of Stage Addr for 8 chars ADDR:%d",EEPROM_STAGE_ADDR);
       for (int i=0;i<8;i++)
       {
-          flLED(eP_LED);
+          led_pulse_start(ledEEPROM);
           uint8_t b = eeprom.eeprom_read(EEPROM_STAGE_ADDR+i);
           DBGPF("%02X ", b);
       }
@@ -3937,10 +4017,10 @@ void loop()
 
     // NOW set Boot Done stage   
     // stage = STAGE_DONE;
-    STAGE(STAGE_DONE,"10 Min Loop Done");
+    STAGE(STAGE_DONE,"10 Min Loop Done!");
 
     // Reset Watch_dog Stage Counter on Success
-    flLED(eP_LED);
+    led_pulse_start(ledEEPROM);
     eeprom.eeprom_write(EEPROM_WD_COUNT_ADDR, 0);
     health.cycle_count++;  // what is it telling me?
   }
@@ -4031,6 +4111,15 @@ void loop()
     }
 
     heartbeatLogger();
+
+    // update all LEDs (non-blocking)
+    // led_pulse_update(ledSD);
+    led_pulse_update(ledRTC);
+    led_pulse_update(ledEEPROM);
+    led_pulse_update(ledBME);
+    led_pulse_update(ledPICO);
+
+    // heartbeat_update();  // Heartbeat LED // TURNED OFF DON'T LIKE THE CONSTANT FLASHING DISTRACTING.
     updateRtcHealth();  // Not needed can be deleted
     // STAGE(STAGE_IDLE,"At end of loop()");
     static uint32_t last_wd = 0;
@@ -4098,6 +4187,74 @@ void logEvent(const char *fmt, ...)
 
     eventPending = true;
 }
+
+
+// heartbeat_update  LED display
+
+
+// void heartbeat_update() {
+//     static unsigned long previousMillis = 0;
+//     static int state = 0;
+
+//     unsigned long now = millis();
+
+//     switch (state) {
+//         case 0:
+//             digitalWrite(Heartbeat_LED_PIN, HIGH);
+//             if (now - previousMillis >= 100) {
+//                 previousMillis = now;
+//                 state = 1;
+//             }
+//             break;
+
+//         case 1:
+//             digitalWrite(Heartbeat_LED_PIN, LOW);
+//             if (now - previousMillis >= 100) {
+//                 previousMillis = now;
+//                 state = 2;
+//             }
+//             break;
+
+//         case 2:
+//             digitalWrite(Heartbeat_LED_PIN, HIGH);
+//             if (now - previousMillis >= 100) {
+//                 previousMillis = now;
+//                 state = 3;
+//             }
+//             break;
+
+//         case 3:
+//             digitalWrite(Heartbeat_LED_PIN, LOW);
+//             if (now - previousMillis >= 800) {
+//                 previousMillis = now;
+//                 state = 0;
+//             }
+//             break;
+//     }
+// }
+
+// Alternate code for the same thing. 
+
+
+// void heartbeat_update() {
+//     static unsigned long previousMillis = 0;
+//     static int state = 0;
+
+//     const int pattern[] = {100, 100, 100, 800};  // ms per state
+//     const int maxStates = 4;
+
+//     unsigned long now = millis();
+
+//     if (now - previousMillis >= pattern[state]) {
+//         previousMillis = now;
+
+//         state++;
+//         if (state >= maxStates) state = 0;
+
+//         // LED ON for states 0 and 2
+//         digitalWrite(LED_PIN, (state == 0 || state == 2) ? HIGH : LOW);
+//     }
+// }
 
 
 #define HB_INTERVAL 60000UL  // 1 minute for testing
