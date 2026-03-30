@@ -1607,14 +1607,27 @@ bool recoverRTCfromSnapshot()
 // Minimal RTC Validation (Setup-Safe)
 bool rtcReadValid()
 {
+    uint8_t y = 0;
+    uint8_t m = 0;
+    uint8_t d =  0;
+  
     led_pulse_start(ledRTC);
     bool rtcrefreshRtnCode = rtc.refresh();
-    
+
+    // set temp variables
+    y  = rtc.year();
+    m  = rtc.month();
+    d   = rtc.day();
+
     if (!rtcrefreshRtnCode) 
     {
         Serial.printf("rtcReadValid rtc.refresh rtn code: %s\n",rtcrefreshRtnCode?"true":"false");
         return false;
     }
+
+    // Test is DS3231 RTC time is close to real time  /// This test may HAVE TO BE RESET WITH NEW DS3231 AND DIFFERENT TIME PERIODS
+    if (y != 2026) return false;
+    if (m < 1 || m > 4) return false; // Feb–May window
 
     rtcCacheUpdate();
 
@@ -3366,8 +3379,7 @@ void setup()
   // eePROM scan to determine at what stage we crashed
   // reportLastResetStage();
 
-  // ONE TIME CODE
-  //setNodeID(1);   // NEW BREADBOARD SET TO 2 OR 3 DEPENDING
+
 
   // List of EEPROM ADDRESSES:
   // DBG("EEPROM ADDR:\n");
@@ -3399,7 +3411,10 @@ void setup()
   // }
   // Serial.println("\n\n");
 
+  // ONE TIME CODE
+  //setNodeID(1);   // NEW BREADBOARD SET TO 2 OR 3 DEPENDING
   // load the Node ID 
+  
   uint8_t id;
   led_pulse_start(ledEEPROM);
   eeprom.eeprom_read(NODE_ID_ADDR, (byte*)&id, sizeof(id));
