@@ -230,6 +230,8 @@ typedef struct  {       // template for the structure; no allocation done
     uint8_t pinSCK;
     uint8_t pinSS;
     uint8_t pinPWR;
+    uint8_t failCount;
+    bool enabled;
 } sd_bus_t;
 
 sd_bus_t sdA = {        // struct allocated using sd_bus_t template or typedef and allocating memory
@@ -240,7 +242,10 @@ sd_bus_t sdA = {        // struct allocated using sd_bus_t template or typedef a
      .pinMISO = PIN_SD1_MISO, //16
      .pinSCK  = PIN_SD1_SCK,  //18
      .pinSS   = PIN_SD1_SS,   //17
-     .pinPWR  = PIN_SD1_PWR   //26
+     .pinPWR  = PIN_SD1_PWR,   //26
+     .failCount = 0,
+     .enabled = true
+
 };
 
 sd_bus_t sdB = {        // dito to above
@@ -251,7 +256,9 @@ sd_bus_t sdB = {        // dito to above
      .pinMISO = PIN_SD2_MISO, //12
      .pinSCK  = PIN_SD2_SCK,  //10
      .pinSS   = PIN_SD2_SS,   //13
-     .pinPWR  = PIN_SD2_PWR   //27
+     .pinPWR  = PIN_SD2_PWR,   //27
+     .failCount = 0,
+     .enabled = true
 };
 
 // Define Chip Select pins for both modules
@@ -2137,6 +2144,18 @@ void spiPinMapping(sd_bus_t &busA,sd_bus_t &busB)
   SD2_PWR = sdB.pinPWR;
 }
 
+void sdSendResetClocks(sd_bus_t &bus)
+{
+    pinMode(bus.pinSS, OUTPUT);
+    digitalWrite(bus.pinSS, HIGH);   // deselect
+
+    pinMode(bus.pinSCK, OUTPUT);
+
+    for (int i = 0; i < 10; i++) {   // 10 bytes = 80 clocks
+        bus.spi->transfer(0xFF);
+    }
+}
+
 bool sdHardRecover(sd_bus_t &bus) {
     DBGLN("SD: HARD RECOVER");
 
@@ -2145,16 +2164,19 @@ bool sdHardRecover(sd_bus_t &bus) {
 
     // 2. Power off SD
     sdPowerOff(bus);
-    delay(250);
+    delay(300);
     watchdog_update();
 
     // 3. Reset SPI peripheral
     bus.spi->end();
-    delay(50);
+    delay(100);
+    watchdog_update();
 
     // 4. Power on SD
     sdPowerOn(bus);
-    delay(300);
+    delay(200);
+    watchdog_update();
+    delay(200);
     watchdog_update();
 
     // 5.1 Map SPI pins
@@ -2167,10 +2189,28 @@ bool sdHardRecover(sd_bus_t &bus) {
     bus.spi->begin();
     delay(100);
 
+    // 6.5 SD Reset clocks
+    sdSendResetClocks(bus);
+
     // 7.  Init SD using SdFat (CORRECT)
-    if (!bus.sd->begin(
-            SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi)
-        )) {
+    bool bus_sdBeginRtnCode;
+    for (int i = 0; i < 3; i++)
+    {
+        bus_sdBeginRtnCode = bus.sd->begin(SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi));
+        if (bus_sdBeginRtnCode)
+        {
+            DBGLN("SD init OK");
+            return true;
+        }
+
+        DBG("SD init retry...");
+        delay(200);
+        watchdog_update();
+    }
+    // if (!bus.sd->begin(
+    //     SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi)
+    // ))
+    if (!bus_sdBeginRtnCode) {
         Serial.println("SD init FAILED");
         fs_fail_count++;
         return false;
@@ -2291,7 +2331,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
   bool sdBRecovError = false;
 
   // --- WRITE TO CARD 1 ---
-  if (!sdARecovError)  // not in a recovery state or just coming out of one  = 0
+  if (sdA.enabled && !sdARecovError)  // not in a recovery state or just coming out of one  = 0
   {
     // watch_dog ENUM 
     // stage = STAGE_SD1;
@@ -2360,8 +2400,19 @@ bool writeSDFile(char *Data, char *File1, char *File2)
   if (!sd1Healthy) //  not true = 0 = false
   {
     // csvfile1.close();          // safe even if already bad
-    // sdFatA.end();  
-    if (!sdHardRecover(sdA))  // = 0
+    // sdFatA.end(); 
+    sdA.failCount++;
+
+    DBGPF("SD1 failCount=%d\n", sdA.failCount);
+
+    if (sdA.failCount >= 3)
+    {
+        DBGLN("SD1 permanently disabled");
+        sdA.enabled = false;
+        sdA_Ready = false;
+        oledEvent("SD1 DISABLED");
+    }
+    else if (!sdHardRecover(sdA))  // = 0
     {
       oledEvent("SD1 ERROR");
       DBGLN("SD1 offline — using SD2 only");
@@ -2369,13 +2420,19 @@ bool writeSDFile(char *Data, char *File1, char *File2)
       sdARecovError = true; // > 0
     } else // HardRecover good  now clear up SfFat by closing open files
     {
+      // SUCCESS → reset fail counter
+      sdA.failCount = 0;
+
       if (cardSyncError1){csvFile1.close(); delay(10);}
       if (cardWriteError1){csvFile1.close(); delay(10);}
+
       DBGLN("** GOOD: SD1 Recovered!");
       oledEvent("SD1 Recovered");
+
       sdA_Ready = true; // > 0
       sdARecovError = false; // > 0
       sd1Healthy = true;
+
       logEvent("**SD_RECOVER card=%d", 1);
     }
 
@@ -2383,7 +2440,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
 
 // SD2 New Start
   // --- WRITE TO CARD 1 ---
-  if (!sdBRecovError)  // not in a recovery state or just coming out of one  = 0
+  if (sdB.enabled && !sdBRecovError)  // not in a recovery state or just coming out of one  = 0
   {
     // watch_dog ENUM
     // stage = STAGE_SD2;
@@ -2458,8 +2515,19 @@ bool writeSDFile(char *Data, char *File1, char *File2)
   if (!sd2Healthy) //  not true = 0 = false
   {
     // csvfile1.close();          // safe even if already bad
-    // sdFatA.end();  
-    if (!sdHardRecover(sdB))  // = 0
+    // sdFatA.end(); 
+    sdB.failCount++;
+
+    DBGPF("SD2 failCount=%d\n", sdB.failCount);
+
+    if (sdB.failCount >= 3)
+    {
+        DBGLN("SD2 permanently disabled");
+        sdB.enabled = false;
+        sdB_Ready = false;
+        oledEvent("SD2 DISABLED");
+    } 
+    else if (!sdHardRecover(sdB))  // = 0
     {
       oledEvent("SD2 ERROR");
       DBGLN("SD2 offline — using SD1 only");
@@ -2467,18 +2535,32 @@ bool writeSDFile(char *Data, char *File1, char *File2)
       sdBRecovError = true; // > 0
     } else // HardRecover good  now clear up SfFat by closing open files
     {
+      // SUCCESS → reset fail counter
+      sdB.failCount = 0;
+
       if (cardSyncError2){csvFile2.close(); delay(10);}
       if (cardWriteError2){csvFile2.close(); delay(10);}
+
       DBGLN("**GOOD: SD2 Recovered!");
       oledEvent("SD2 Recovered");
+
       sdB_Ready = true; // > 0
       sdBRecovError = false; // > 0
       sd2Healthy = true;
+
       logEvent("**SD_RECOVER card=%d", 2);
     }
 
   } 
   // SD2 New End
+
+  if (!sdA.enabled && !sdB.enabled)
+  {
+      DBGLN("Both SD cards failed → forcing reboot");
+
+      delay(500);
+      watchdog_reboot(0, 0, 0);
+  }
 
   if (sdDataLen != written1) //LFCR
   {
@@ -3831,6 +3913,12 @@ void setup()
   // set up the LED
   pinMode(SD1_LED, OUTPUT);
   pinMode(SD2_LED, OUTPUT);
+
+  // Initialize counts and flags
+  sdA.failCount = 0;
+  sdB.failCount = 0;
+  sdA.enabled = true;
+  sdB.enabled = true;
 
   // ------------------------- SD1 -----------------------------------
   sdOn(SD1_LED);
