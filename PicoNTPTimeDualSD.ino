@@ -1539,14 +1539,24 @@ bool readTimeSnapshot(TimeSnapshot &snap)
 {
     uint8_t buf[5];
 
-    DBG("In setup Read TimeSnapshot EEPROM Struct:HEX DEC->:");
-    for(uint8_t i=0;i<5;i++)
+    DBG("In setup Read TimeSnapshot EEPROM Struct:->:\n");
+    DBG("HEX Dump:");
+    for (uint8_t i=0;i<5;i++)
     {
         led_pulse_start(ledEEPROM);
         buf[i] = eeprom.eeprom_read(SNAP_ADDR+i);
-        DBGPF("%02X %02u ",buf[i],buf[i]);
+        DBGPF("%02X ",buf[i]);
+    }
+    DBG("DEC Dump:");
+    for (uint8_t i=0;i<5;i++)
+    {
+        led_pulse_start(ledEEPROM);
+        buf[i] = eeprom.eeprom_read(SNAP_ADDR+i);
+        DBGPF("%02u ",buf[i]);
     }
     DBG("\n");
+
+
     // for (uint8_t j=0;j<5;J++)  {printf("%02X ",buf[j]);}
     // CRC
     if(snapshotCRC(buf) != buf[4])
@@ -1567,6 +1577,9 @@ bool readTimeSnapshot(TimeSnapshot &snap)
 
     // snap.confidence = buf[6];
     snap.crc        = buf[4];
+
+    Serial.printf("SNAP RAW: %02X %02X %02X %02X %02X\n",
+    snap.year, snap.month, snap.day, snap.hour, snap.crc);
 
     // Sanity checks
     if(snap.month < 1 || snap.month > 12) return false;
@@ -1600,7 +1613,7 @@ bool recoverRTCfromSnapshot()
 
     rtc.set(0, 0, h, 0, d, m, y);   //sec, min, hour, dow, day, month, year
 
-    DBG("RTC rebuilt from snapshot");
+    DBGLN("RTC rebuilt from snapshot");
     return true;
 }
 
@@ -1617,8 +1630,8 @@ bool rtcReadValid()
     // set temp variables
     y  = rtc.year();
     m  = rtc.month();
-    d   = rtc.day();
-
+    d  = rtc.day();
+    DBGPF("rtcReadValid -> closeness check y=:%d m=:%d d=:%d\n",y,m,d);
     if (!rtcrefreshRtnCode) 
     {
         Serial.printf("rtcReadValid rtc.refresh rtn code: %s\n",rtcrefreshRtnCode?"true":"false");
@@ -1626,9 +1639,9 @@ bool rtcReadValid()
     }
 
     // Test is DS3231 RTC time is close to real time  /// This test may HAVE TO BE RESET WITH NEW DS3231 AND DIFFERENT TIME PERIODS
-    if (y != 2026) return false;
+    if (y != 26) return false;
     if (m < 1 || m > 4) return false; // Feb–May window
-
+    // return false; // test only delete
     rtcCacheUpdate();
 
     bool rtcValidateCacheRtnCode = rtcValidateCache();
@@ -2952,37 +2965,132 @@ bool listFiles(SdFat &sdInstance, const char* label) {
 #define WIFI_COUNT 3
 #define WIFI_RETRIES 3
 
+
+
 bool tryWiFiMulti()  
 {
+    WiFi.mode(WIFI_STA);
+    delay(200);
+
     for (int s=0; s<WIFI_COUNT; s++)
     {
         for (int r=0; r<WIFI_RETRIES; r++)
         {
-            DBG("WiFi trying SSID...");
-            DBG(ssidList[s]);
+            DBGLN("WiFi trying SSID...");
+            DBGLN(ssidList[s]);
+
+            WiFi.disconnect(true);   // FULL reset
+            delay(500);
 
             WiFi.begin(ssidList[s], passList[s]);
 
-            uint32_t start = millis();
-            // OLED display
-            // display.println("WiFi INIT");
-            // display.display();
+            Serial.print("\nConnecting");
 
-            while (millis() - start < 8000)
+            for (int i = 0; i < 120; i++)   // ~60 sec @ 500ms
             {
-                if (WiFi.status() == WL_CONNECTED)
+                int status = WiFi.status();
+                // Serial.printf("Status: %d\n", status);
+
+                if (status == WL_CONNECTED)
                 {
                     DBG("WiFi connected!");
+                    Serial.println(WiFi.localIP());
                     return true;
                 }
+
                 Serial.print(".");
-                delay(250);
+                delay(500);          // ← IMPORTANT (was 50)
+                watchdog_update();
             }
+
+            DBG("\nRetrying same SSID...");
         }
+
+        DBGLN("\nMoving to next SSID...");
     }
-    DBG("WiFi unavailable");
+
+    DBGLN("WiFi unavailable after retries");
     return false;
 }
+
+// bool tryWiFiMulti()  
+// {
+//     for (int s=0; s<WIFI_COUNT; s++)
+//     {
+//         for (int r=0; r<WIFI_RETRIES; r++)
+//         {
+//             DBG("WiFi trying SSID...");
+//             DBGLN(ssidList[s]);
+//             DBGLN(passList[s]);
+
+//             WiFi.disconnect();
+//             delay(100);
+//             DBG("Before WiFi.begin()\n");
+//             WiFi.begin(ssidList[s], passList[s]);
+//             DBG("After WiFi.begin()\n");
+//             uint32_t hardStart = millis();
+//             Serial.print("Connecting");
+
+//             for (int i = 0; i < 1800; i++)  // ~90 sec
+//             {
+//                 if (millis() - hardStart > 70000) 
+//                 {
+//                     DBG("Hard timeout escape\n");
+//                     break;
+//                 }
+//                 if (WiFi.status() == WL_CONNECTED)
+//                 {
+//                     DBG("WiFi connected!\n");
+//                     return true;
+//                 }
+
+//                 Serial.print(".");
+//                 delay(1); yield();              // VERY IMPORTANT on Pico W
+//                 Serial.printf("Status: %d\n", WiFi.status());
+//                 watchdog_update();
+//             }
+
+//             DBG("Retrying next attempt...\n");
+//         }
+//     }
+
+//     DBG("WiFi unavailable after retries\n");
+//     return false;
+// }
+
+// bool tryWiFiMulti()  
+// {
+//     for (int s=0; s<WIFI_COUNT; s++)
+//     {
+//         for (int r=0; r<WIFI_RETRIES; r++)
+//         {
+//             DBG("WiFi trying SSID...");
+//             DBG(ssidList[s]);
+
+//             WiFi.begin(ssidList[s], passList[s]);
+
+//             uint32_t start = millis();
+//             // OLED display
+//             // display.println("WiFi INIT");
+//             // display.display();
+//             watchdog_update();
+//             Serial.print("Connecting");
+//             while (millis() - start < 60000)
+//             {
+//                 if (WiFi.status() == WL_CONNECTED)
+//                 {
+//                     DBG("WiFi connected!");
+//                     return true;
+//                 }
+//                 Serial.print(".");
+//                 delay(50);
+//                 watchdog_update();
+//             }
+//         }
+//     }
+//     DBG("WiFi unavailable after trying for 60000 ms");
+//     return false;
+// }
 
 
 // sync from NTP server
@@ -2995,19 +3103,42 @@ bool syncTimeFromNTP()
   tzset();
   configTime(0, 0, ntpServer1, ntpServer2);
  
-  // display.println("NTP Sync");
-  // display.display();
-
-  // GET TIME FROM NTP SERVER
   Serial.print("Requesting time from NTP Server\n");
   Serial.print("Waiting for NTP server");
-  while (!getLocalTime(&timeinfo)) 
+
+  uint32_t start = millis();
+
+  while (time(NULL) < 1700000000)   // valid epoch check
   {
-      // Serial.println("Waiting for time");
       Serial.print(".");
       delay(250);
+      watchdog_update();
+      yield();
+
+      if (millis() - start > 40000)  // 40 seconds
+      {
+          DBG("NTP timeout");
+          return false;
+      }
   }
-  DBGPF("Time zone: %s\n", tzname[0]);  
+
+  getLocalTime(&timeinfo);
+
+  DBGPF("\nTime zone: %s\n", tzname[0]);
+
+  // // display.println("NTP Sync");
+  // // display.display();
+  // watchdog_update();
+  // // GET TIME FROM NTP SERVER
+  // Serial.print("Requesting time from NTP Server\n");
+  // Serial.print("Waiting for NTP server");
+  // while (!getLocalTime(&timeinfo)) 
+  // {
+  //     // Serial.println("Waiting for time");
+  //     Serial.print(".");
+  //     delay(250);
+  // }
+  // DBGPF("Time zone: %s\n", tzname[0]);  
   // Got the time in struct tm timeinfo;  
   // Set internal PICO RTC from NTP Time
   datetime_t t = {
@@ -3331,6 +3462,7 @@ void setup()
   pinMode(SCL, INPUT);      //I2C
 
   // Init the LED's 
+  DBG("led init\n");
   led_init(ledRTC); // DS3231 Time activity
   led_init(ledBME);  // BMx  Time activity
   led_init(ledEEPROM);  // 24C32  EEPROM activity
@@ -3342,7 +3474,7 @@ void setup()
   // pinMode(LED_BUILTIN, OUTPUT);
  
 
-  delay(100);
+  delay(10);
   // test LED // turn on then off to test
   // led_pulse_start(pi_LED);
   // led_pulse_start(rtc_LED);
@@ -3364,7 +3496,7 @@ void setup()
 
   i2cInit();    // -------------------------- initialize Wire ---------
   delay(100);
-
+  watchdog_update();
   //  Presence test
   if (i2cDevicePresent(0x68)) 
   {
@@ -3424,7 +3556,7 @@ void setup()
   else
       NODE_ID = id;   // defaultNODE_ID
   DBGPF("Setup NODE_ID: %d\n",NODE_ID);
-
+  watchdog_update();
   // load boot count
 
   // ------------------- One time code only
@@ -3496,7 +3628,7 @@ void setup()
   //     DBGPF("%02X ", b);
   // }
   // DBGLN("\n");
-
+  watchdog_update();
   // boot Detection Logic
   watchdogEscalationCheck();
   Serial.printf("\n");      // blank line
@@ -3541,48 +3673,75 @@ void setup()
   }
   else  // try WiFi and NTP server
   {
-    DBG("SETUP: RTC invalid");
-    if (tryWiFiMulti())
-    {
-        if (syncTimeFromNTP())  // NEED TO TEST NTP TIME FOR VALID TIME  // NEEDS ITEMS UPDATED TO BE PUT IN A SEPARATE ROUTINE
-        {
-            DBG("SETUP: NTP acquired");
-            syncPicoToDS3231();   // MAKE SURE CACHES ARE SET  syncTimeFromNTP MAY HAVE DONE THIS ALL READY
-            timeConfidence = 2;
-        }
+
+      DBG("SETUP: RTC read invalid trying WiFi\n");
+      WiFi.mode(WIFI_STA);
+      delay(100);
+      bool tryWiFiRtnCode = tryWiFiMulti();
+      DBG_BOOL("try WiFi rtn Code",tryWiFiRtnCode);
+      if (tryWiFiRtnCode)
+      {
+          if (syncTimeFromNTP())  // NEED TO TEST NTP TIME FOR VALID TIME  // NEEDS ITEMS UPDATED TO BE PUT IN A SEPARATE ROUTINE
+          {
+              DBG("SETUP: NTP acquired Syncing Pico to DS3231\n");
+              syncPicoToDS3231();   // MAKE SURE CACHES ARE SET  syncTimeFromNTP MAY HAVE DONE THIS ALL READY
+              timeConfidence = 2;
+          }
+      }
+
+      // DBG_BOOL("try WiFi rtn Code",tryWiFiRtnCode);
+      // if (tryWiFiRtnCode)
+      // {
+      //     if (syncTimeFromNTP())  // NEED TO TEST NTP TIME FOR VALID TIME  // NEEDS ITEMS UPDATED TO BE PUT IN A SEPARATE ROUTINE
+      //     {
+      //         DBG("SETUP: NTP acquired Syncing Pico to DS3231\n");
+      //         syncPicoToDS3231();   // MAKE SURE CACHES ARE SET  syncTimeFromNTP MAY HAVE DONE THIS ALL READY
+      //         timeConfidence = 2;
+      //     }
+      // }
+
+      if (timeConfidence == 0 && snapOK)  // reset RTC with EEPROM Time may be out a day
+      {
+          DBGLN("\nSETUP: Synthetic rebuild\n");
+
+          // Rebuilt DS3231 from snapshot; 
+          recoverRTCfromSnapshot();
+
+          // Initialize the PICO RTC
+          rtc_init(); //    Pico RTC Init  
+
+          // Now sync PICO RTC from DS3231
+          syncDS3231ToPico();
+
+          // datetime_t t;
+          // t.year  = 2000 + snap.year;
+          // t.month = snap.month;
+          // t.day   = snap.day;
+          // t.hour  = (snap.hour + 12) % 24;
+          // t.min   = 0;
+          // t.sec   = 0;
+
+          // // rtc_set_datetime(&t);
+          //  rtc_init(); //    Pico RTC Init    
+          // bool rtcsetRtnCode = rtc_set_datetime(&t);
+          // delay(65);
+          // Serial.printf("PICO set time RtnCode: %s\n",rtcsetRtnCode?"true":"false");
+          // syncPicoToDS3231();  // MAKE SURE CACHES ARE SET
+      }
+
+      if (timeConfidence == 0 && !snapOK)  // so assume an arbratary time of 2025-1-1  so we have a sequence counter
+      {
+          DBG("SETUP: Default compile time\n");
+
+          datetime_t t = {2026,1,1,0,0,0}; //A RECORDING METHOD EVEN IF SNAP FAILS  
+          rtc_init(); //    Pico RTC Init  
+          bool rtcsetRtnCode = rtc_set_datetime(&t);
+          delay(65);
+          Serial.printf("PICO set time RtnCode: %s\n",rtcsetRtnCode?"true":"false");
+          syncPicoToDS3231();  // MAKE SURE CACHES ARE SET
+      }
     }
-
-    if (timeConfidence == 0 && snapOK)  // reset RTC with EEPROM Time may be out a day
-    {
-        DBG("SETUP: Synthetic rebuild");
-
-        datetime_t t;
-        t.year  = 2000 + snap.year;
-        t.month = snap.month;
-        t.day   = snap.day;
-        t.hour  = (snap.hour + 12) % 24;
-        t.min   = 0;
-        t.sec   = 0;
-
-        // rtc_set_datetime(&t);
-        bool rtcsetRtnCode = rtc_set_datetime(&t);
-        delay(65);
-        Serial.printf("PICO set time RtnCode: %s\n",rtcsetRtnCode?"true":"false");
-        syncPicoToDS3231();  // MAKE SURE CACHES ARE SET
-    }
-
-    if (timeConfidence == 0 && !snapOK)  // so assume an arbratary time of 2025-1-1  so we have a sequence counter
-    {
-        DBG("SETUP: Default compile time");
-
-        datetime_t t = {2025,1,1,0,0,0}; //A RECORDING METHOD EVEN IF SNAP FAILS  (I WOULD SET YEAR TO 2030 TO BE DISTINTIVE )
-        bool rtcsetRtnCode = rtc_set_datetime(&t);
-        delay(65);
-        Serial.printf("PICO set time RtnCode: %s\n",rtcsetRtnCode?"true":"false");
-        syncPicoToDS3231();  // MAKE SURE CACHES ARE SET
-    }
-  }
-
+  
   watchdog_update();
 
   // clear the watchdogEscalation
