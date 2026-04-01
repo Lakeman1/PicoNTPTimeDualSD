@@ -1230,10 +1230,10 @@ void rtcPowerCycle()
     pinMode(SCL, INPUT);
 
     rtcPowerOff(rtc_PWR);
-    delay(300);
+   for (int i = 0; i < 6; i++) {delay(50); watchdog_update();}
 
     rtcPowerOn(rtc_PWR);
-    delay(300);
+    for (int i = 0; i < 6; i++) {delay(50); watchdog_update();}
 }
 
 // Add a helper for OLED later:
@@ -2156,7 +2156,8 @@ void sdSendResetClocks(sd_bus_t &bus)
     }
 }
 
-bool sdHardRecover(sd_bus_t &bus) {
+bool sdHardRecover(sd_bus_t &bus) 
+{
     DBGLN("SD: HARD RECOVER");
 
     // 1. Stop SPI driving for THIS bus only
@@ -2164,20 +2165,32 @@ bool sdHardRecover(sd_bus_t &bus) {
 
     // 2. Power off SD
     sdPowerOff(bus);
-    delay(300);
-    watchdog_update();
+    for (int i = 0; i < 6; i++) 
+    {
+        delay(50);
+        watchdog_update();
+    }
+    // delay(300);
+    // watchdog_update();
 
     // 3. Reset SPI peripheral
     bus.spi->end();
-    delay(100);
-    watchdog_update();
+    for (int i = 0; i < 4; i++) 
+    {
+        delay(50);
+        watchdog_update();
+    }
 
     // 4. Power on SD
     sdPowerOn(bus);
-    delay(200);
-    watchdog_update();
-    delay(200);
-    watchdog_update();
+    for (int i = 0; i < 4; i++) 
+    {
+      delay(50);
+      watchdog_update();
+    }
+    // watchdog_update();
+    // delay(200);
+    // watchdog_update();
 
     // 5.1 Map SPI pins
     mapSpiPins(bus);
@@ -2187,46 +2200,117 @@ bool sdHardRecover(sd_bus_t &bus) {
 
     // 6. Restart SPI
     bus.spi->begin();
-    delay(100);
+    for (int i = 0; i < 2; i++) 
+    {
+      delay(50);
+      watchdog_update();
+    }
 
     // 6.5 SD Reset clocks
     sdSendResetClocks(bus);
 
     // 7.  Init SD using SdFat (CORRECT)
-    bool bus_sdBeginRtnCode;
-    for (int i = 0; i < 3; i++)
+
+    // bool sdHardRecover(sd_bus_t &bus) 
+    // {
+    //   DBGLN("SD: HARD RECOVER");
+
+    //   watchdog_update();
+
+    //   sdSpiHiZ(bus);
+
+    //   digitalWrite(bus.pinSS, HIGH);
+
+    //   watchdog_update();
+
+    //   sdPowerOff(bus);
+    //   for (int i=0;i<5;i++) { delay(50); watchdog_update(); }
+
+    //   bus.spi->end();
+    //   for (int i=0;i<2;i++) { delay(50); watchdog_update(); }
+
+    //   sdPowerOn(bus);
+    //   for (int i=0;i<6;i++) { delay(50); watchdog_update(); }
+
+    //   mapSpiPins(bus);
+    //   sdSpiRestore(bus);
+
+    //   watchdog_update();
+
+    //   bus.spi->begin();
+
+    //   for (int i=0;i<2;i++) { delay(50); watchdog_update(); }
+
+    // 🔥 CRITICAL: guard SD init
+    bool initOK = false;
+
+    uint32_t start = millis();
+
+    while (millis() - start < 1500)   // 1.5s timeout window
     {
-        bus_sdBeginRtnCode = bus.sd->begin(SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi));
-        if (bus_sdBeginRtnCode)
+        if (bus.sd->begin(
+            SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi)
+        )) 
         {
+            initOK = true;
             DBGLN("SD init OK");
             return true;
         }
 
-        DBG("SD init retry...");
-        delay(200);
         watchdog_update();
-    }
-    // if (!bus.sd->begin(
-    //     SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi)
-    // ))
-    if (!bus_sdBeginRtnCode) {
-        Serial.println("SD init FAILED");
-        fs_fail_count++;
-        return false;
+        for (int i = 0; i < 2; i++) 
+        {
+          delay(50);
+          watchdog_update();
+        }
     }
 
-    DBGLN("SD init OK");
-    return true;
+    // if (!initOK)
+    // {
+      Serial.println("SD init FAILED (timeout)");
+      fs_fail_count++;
+      return false;
+    // }
 }
 
+    // bool bus_sdBeginRtnCode;
+    // for (int i = 0; i < 3; i++)
+    // {
+    //     bus_sdBeginRtnCode = bus.sd->begin(SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi));
+    //     if (bus_sdBeginRtnCode)
+    //     {
+    //         DBGLN("SD init OK");
+    //         return true;
+    //     }
+
+    //     DBG("SD init retry...");
+    //     delay(200);
+    //     watchdog_update();
+    // }
+    // // if (!bus.sd->begin(
+    // //     SdSpiConfig(bus.pinSS, DEDICATED_SPI, SD_SCK_MHZ(12), bus.spi)
+    // // ))
+    // if (!bus_sdBeginRtnCode) {
+    //     Serial.println("SD init FAILED");
+    //     fs_fail_count++;
+    //     return false;
+    // }
+
+    // DBGLN("SD init OK");
+    // return true;
+
+
 // sd Power routines 
-bool sdPowerOn(const sd_bus_t &bus) {
+bool sdPowerOn(const sd_bus_t &bus) 
+{
   bool pin_state = LOW;
   char buffer[80] = "";
   pinMode(bus.pinPWR, OUTPUT);
   digitalWrite(bus.pinPWR, HIGH);
-  delay(200);
+  for (int i = 0; i < 4; i++) {
+    delay(50);
+    watchdog_update();
+  }
   pin_state = gpio_get(bus.pinPWR);
   // Test the state using an if statement
   if (pin_state) {
@@ -2246,7 +2330,10 @@ bool sdPowerOff(const sd_bus_t &bus)
   char buffer[80] = "";
   pinMode(bus.pinPWR, OUTPUT);
   digitalWrite(bus.pinPWR, LOW);
-  delay(300);
+  for (int i = 0; i < 6; i++) {
+    delay(50);
+    watchdog_update();
+  }
   pin_state = gpio_get(bus.pinPWR);
   // Test the state using an if statement
   if (pin_state) {
@@ -2370,7 +2457,110 @@ bool writeSDFile(char *Data, char *File1, char *File2)
           }
           else // Sync failure
           {
-            sdFatA.errorPrint(&Serial);
+            //------------------ SD Startup ----------------------------
+  // NOW set Boot SD stage  
+  STAGE(STAGE_BOOT_SD,"Init SD's");  
+
+  sdA.sd = &sdFatA;
+  sdB.sd = &sdFatB;
+
+  // Start up the SD modules SD have a MOSFET which switches on power when a PICO pin is set HIGH
+  // 0. SPI pin mapping
+  spiPinMapping(sdA,sdB);
+
+  // Power on
+  // set up the LED
+  pinMode(SD1_LED, OUTPUT);
+  pinMode(SD2_LED, OUTPUT);
+
+  // Initialize counts and flags
+  sdA.failCount = 0;
+  sdB.failCount = 0;
+  sdA.enabled = true;
+  sdB.enabled = true;
+
+  // ------------------------- SD1 -----------------------------------
+  sdOn(SD1_LED);
+  if (!sdPowerOn(sdA)) {
+    Serial.print("Trouble with powering on SD1 -- Check wiring, and MOSFET\n");
+  };
+  sdOff(SD1_LED);
+
+  pinMode(SD1_CS, OUTPUT);
+  digitalWrite(SD1_CS, HIGH);
+  delay(100); // Give hardware time to settle
+  
+  // Init SPI
+  //  Initialization: Initialize each SD object with its CS pin
+  // --- INITIALIZE SD1 ON SPI0 ---
+  sdOn(SD1_LED);
+  SPI.setRX(16); SPI.setTX(19); SPI.setSCK(18);
+  if (!sdA.sd->begin(SdSpiConfig(sdA.pinSS, DEDICATED_SPI, SD_SCK_MHZ(16), sdA.spi))) {
+    Serial.println("sdA (SPI0) Failed to initialize!");
+  } else {
+    DBGLN("sdA Init OK");
+  }
+  sdOff(SD1_LED);
+
+  watchdog_update();
+
+  // ---------------------------------------- SD2 -----------------------------
+  // Power on
+  sdOn(SD2_LED);
+  if (!sdPowerOn(sdB)) {
+    Serial.print("Trouble with powering on SD2 -- Check wiring, and MOSFET\n");  
+  };
+  sdOff(SD2_LED);
+  watchdog_update();
+  pinMode(SD2_CS, OUTPUT);
+  digitalWrite(SD2_CS, HIGH);
+  delay(100); // Give hardware time to settle
+
+  // Init SPI
+  // sd2 uses SPI1
+  sdOn(SD2_LED);
+  SPI1.setRX(12); SPI1.setTX(11); SPI1.setSCK(10);
+  if (!sdB.sd->begin(SdSpiConfig(sdB.pinSS, DEDICATED_SPI, SD_SCK_MHZ(16), sdB.spi))) {
+    Serial.println("sdB (SPI1) Failed to initialize!");
+  } else {
+    DBGLN("sdB Init OK");
+  }
+  sdOff(SD2_LED);
+
+  watchdog_update();
+
+  // Test by List all files and directories recursively from the root directory
+
+  Serial.println("\nSD Card 1 Listing files: Built in lib");
+   sdOn(SD1_LED);
+  sdA.sd->ls(LS_R); // LS_R flag enables recursive listing
+  sdOff(SD1_LED);
+  Serial.println("sdA Listed!");
+  watchdog_update();
+     // List all files and directories recursively from the root directory
+  Serial.println("\nSD Card 1 Listing files:");
+  // sdA.sd->ls(LS_R); // LS_R flag enables recursive listing
+   sdOn(SD1_LED);
+  if (sdA.sd->exists("/")) listFiles(*sdA.sd, "SD Card 1 (SPI0)");
+  sdOff(SD1_LED);
+  Serial.println("SD A done!");
+  watchdog_update();
+
+
+  Serial.println("\nSD Card 2 Listing files: Built in lib");
+  sdOn(SD2_LED);
+  sdB.sd->ls(LS_R); // LS_R flag enables recursive listing
+  sdOff(SD2_LED);
+  Serial.println("sdB  Built in lib!");
+  watchdog_update();
+       // List all files and directories recursively from the root directory
+  Serial.println("\nSD Card 2 Listing files:");
+  // sd2.sd->ls(LS_R); // LS_R flag enables recursive listing
+  sdOn(SD2_LED);
+  if (sdB.sd->exists("/")) listFiles(*sdB.sd, "SD Card 2 (SPI1)");
+  Serial.println("sd B done!");
+  sdOff(SD2_LED);
+
             cardSyncError1 = true; // > 0
             sd1Healthy = false;    // = 0
             DBGSNPF(buffer,sizeof(buffer),"**Error: Card:%d sync failed - card possible removal mid-write\n",1);
@@ -3932,22 +4122,27 @@ void setup()
     Serial.print("Trouble with powering on SD1 -- Check wiring, and MOSFET\n");
   };
   sdOff(SD1_LED);
+ 
 
+  for (int i = 0; i < 6; i++) {delay(50); watchdog_update();}
   pinMode(SD1_CS, OUTPUT);
   digitalWrite(SD1_CS, HIGH);
-  delay(100); // Give hardware time to settle
-  
+  // delay(100); // Give hardware time to settle
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
   // Init SPI
   //  Initialization: Initialize each SD object with its CS pin
   // --- INITIALIZE SD1 ON SPI0 ---
+  sdSendResetClocks(sdA);
   sdOn(SD1_LED);
   SPI.setRX(16); SPI.setTX(19); SPI.setSCK(18);
-  if (!sdA.sd->begin(SdSpiConfig(sdA.pinSS, DEDICATED_SPI, SD_SCK_MHZ(16), sdA.spi))) {
+  if (!sdA.sd->begin(SdSpiConfig(sdA.pinSS, DEDICATED_SPI, SD_SCK_MHZ(4), sdA.spi))) {
     Serial.println("sdA (SPI0) Failed to initialize!");
+    sdA.sd->initErrorPrint(&Serial);
   } else {
     DBGLN("sdA Init OK");
   }
   sdOff(SD1_LED);
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
 
   watchdog_update();
 
@@ -3958,46 +4153,53 @@ void setup()
     Serial.print("Trouble with powering on SD2 -- Check wiring, and MOSFET\n");  
   };
   sdOff(SD2_LED);
-  watchdog_update();
+  
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
   pinMode(SD2_CS, OUTPUT);
   digitalWrite(SD2_CS, HIGH);
-  delay(100); // Give hardware time to settle
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
+  // delay(100); // Give hardware time to settle
 
   // Init SPI
   // sd2 uses SPI1
+  sdSendResetClocks(sdB);
   sdOn(SD2_LED);
   SPI1.setRX(12); SPI1.setTX(11); SPI1.setSCK(10);
-  if (!sdB.sd->begin(SdSpiConfig(sdB.pinSS, DEDICATED_SPI, SD_SCK_MHZ(16), sdB.spi))) {
+  if (!sdB.sd->begin(SdSpiConfig(sdB.pinSS, DEDICATED_SPI, SD_SCK_MHZ(4), sdB.spi))) {
     Serial.println("sdB (SPI1) Failed to initialize!");
+    sdB.sd->initErrorPrint(&Serial);
   } else {
     DBGLN("sdB Init OK");
   }
   sdOff(SD2_LED);
-
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
   watchdog_update();
 
   // Test by List all files and directories recursively from the root directory
 
   Serial.println("\nSD Card 1 Listing files: Built in lib");
-   sdOn(SD1_LED);
+  sdOn(SD1_LED);
   sdA.sd->ls(LS_R); // LS_R flag enables recursive listing
   sdOff(SD1_LED);
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
   Serial.println("sdA Listed!");
   watchdog_update();
-     // List all files and directories recursively from the root directory
+
+  // List all files and directories recursively from the root directory
   Serial.println("\nSD Card 1 Listing files:");
   // sdA.sd->ls(LS_R); // LS_R flag enables recursive listing
-   sdOn(SD1_LED);
+  sdOn(SD1_LED);
   if (sdA.sd->exists("/")) listFiles(*sdA.sd, "SD Card 1 (SPI0)");
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
   sdOff(SD1_LED);
   Serial.println("SD A done!");
   watchdog_update();
-
 
   Serial.println("\nSD Card 2 Listing files: Built in lib");
   sdOn(SD2_LED);
   sdB.sd->ls(LS_R); // LS_R flag enables recursive listing
   sdOff(SD2_LED);
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
   Serial.println("sdB  Built in lib!");
   watchdog_update();
        // List all files and directories recursively from the root directory
@@ -4005,6 +4207,7 @@ void setup()
   // sd2.sd->ls(LS_R); // LS_R flag enables recursive listing
   sdOn(SD2_LED);
   if (sdB.sd->exists("/")) listFiles(*sdB.sd, "SD Card 2 (SPI1)");
+  for (int i = 0; i < 2; i++) {delay(50); watchdog_update();}
   Serial.println("sd B done!");
   sdOff(SD2_LED);
 
