@@ -2370,6 +2370,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
           }
           else // Sync failure
           {
+            sdFatA.errorPrint(&Serial);
             cardSyncError1 = true; // > 0
             sd1Healthy = false;    // = 0
             DBGSNPF(buffer,sizeof(buffer),"**Error: Card:%d sync failed - card possible removal mid-write\n",1);
@@ -2378,6 +2379,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
           } //sync failure else close
         } else // write failure 
         { 
+          sdFatA.errorPrint(&Serial);
           sdA_Ready = false; 
           cardWriteError1 = true;
           sd1Healthy = false;
@@ -2387,6 +2389,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
         } // write failure else close
     } else // Open failure
     {
+      sdFatA.errorPrint(&Serial);
       sdA_Ready = false; // Mark error
       cardOpenError1 = true;
       sd1Healthy = false;
@@ -2485,6 +2488,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
           }
           else // Sync failure
           {
+            sdFatB.errorPrint(&Serial);
             cardSyncError2 = true; // > 0
             sd2Healthy = false;    // = 0
             DBGSNPF(buffer,sizeof(buffer),"**Error Card:%d sync failed - card possible removal mid-write\n",2);
@@ -2493,6 +2497,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
           } //sync failure else close
         } else // write failure 
         { 
+          sdFatB.errorPrint(&Serial);
           sdB_Ready = false; 
           cardWriteError2 = true;
           sd2Healthy = false;
@@ -2502,6 +2507,7 @@ bool writeSDFile(char *Data, char *File1, char *File2)
         } // write failure else close
     } else // Open failure
     {
+      sdFatB.errorPrint(&Serial);
       sdB_Ready = false; // Mark error
       cardOpenError2 = true;
       sd2Healthy = false;
